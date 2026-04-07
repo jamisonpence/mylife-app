@@ -1,226 +1,206 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, real, boolean, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// ── EVENTS (existing, extended) ───────────────────────────────────────────────
-export const events = sqliteTable("events", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  title: text("title").notNull(),
-  date: text("date").notNull(),
-  endDate: text("end_date"),
-  category: text("category").notNull().default("other"),
-  recurring: text("recurring").notNull().default("none"),
-  description: text("description"),
-  color: text("color"),
+// — EVENTS (existing, extended) ——————————————————————————————
+export const events = pgTable("events", {
+    id: serial("id").primaryKey(),
+    title: text("title").notNull(),
+    date: text("date").notNull(),
+    endDate: text("end_date"),
+    category: text("category").notNull().default("other"),
+    recurring: text("recurring").notNull().default("none"),
+    description: text("description"),
+    color: text("color"),
 });
 
-// ── TASKS (existing, unchanged) ────────────────────────────────────────────────
-export const tasks = sqliteTable("tasks", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  eventId: integer("event_id").notNull(),
-  title: text("title").notNull(),
-  completed: integer("completed", { mode: "boolean" }).notNull().default(false),
-  dueDate: text("due_date"),
-  notes: text("notes"),
-  sortOrder: integer("sort_order").notNull().default(0),
+// — TASKS (existing, unchanged) ——————————————————————————————
+export const tasks = pgTable("tasks", {
+    id: serial("id").primaryKey(),
+    eventId: integer("event_id").notNull(),
+    title: text("title").notNull(),
+    completed: boolean("completed").notNull().default(false),
+    dueDate: text("due_date"),
+    notes: text("notes"),
+    sortOrder: integer("sort_order").notNull().default(0),
 });
 
-// ── BOOKS ─────────────────────────────────────────────────────────────────────
+// — BOOKS ——————————————————————————————————————————————————
 // status: "backlog" | "current" | "paused" | "finished"
-export const books = sqliteTable("books", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  title: text("title").notNull(),
-  author: text("author"),
-  series: text("series"),
-  seriesNumber: integer("series_number"),
-  genre: text("genre"),        // comma-separated tags
-  status: text("status").notNull().default("backlog"),
-  totalPages: integer("total_pages"),
-  pagesRead: integer("pages_read").notNull().default(0),
-  startDate: text("start_date"),
-  targetFinishDate: text("target_finish_date"),
-  finishDate: text("finish_date"),
-  notes: text("notes"),
-  highlights: text("highlights"),
-  linkedGoalId: integer("linked_goal_id"),
-  coverColor: text("cover_color"),  // for visual card accent
+export const books = pgTable("books", {
+    id: serial("id").primaryKey(),
+    title: text("title").notNull(),
+    author: text("author"),
+    status: text("status").notNull().default("backlog"),
+    totalPages: integer("total_pages"),
+    currentPage: integer("current_page").notNull().default(0),
+    startDate: text("start_date"),
+    finishDate: text("finish_date"),
+    notes: text("notes"),
+    coverUrl: text("cover_url"),
+    genre: text("genre"),
+    rating: integer("rating"),
+    sortOrder: integer("sort_order").notNull().default(0),
 });
 
-// ── READING SESSIONS ──────────────────────────────────────────────────────────
-export const readingSessions = sqliteTable("reading_sessions", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  bookId: integer("book_id").notNull(),
-  date: text("date").notNull(),
-  pagesRead: integer("pages_read").notNull().default(0),
-  durationMinutes: integer("duration_minutes"),
-  notes: text("notes"),
-  // for calendar scheduling (planned vs completed)
-  planned: integer("planned", { mode: "boolean" }).notNull().default(false),
-  completed: integer("completed", { mode: "boolean" }).notNull().default(false),
-  recurring: text("recurring").notNull().default("none"),
+export const readingSessions = pgTable("reading_sessions", {
+    id: serial("id").primaryKey(),
+    bookId: integer("book_id").notNull(),
+    date: text("date").notNull(),
+    pagesRead: integer("pages_read").notNull().default(0),
+    durationMinutes: integer("duration_minutes"),
+    notes: text("notes"),
+    // for calendar scheduling (planned vs completed)
+    planned: boolean("planned").notNull().default(false),
+    completed: boolean("completed").notNull().default(false),
+    recurring: text("recurring").notNull().default("none"),
 });
 
-// ── WORKOUT TEMPLATES ─────────────────────────────────────────────────────────
+// — WORKOUT TEMPLATES ——————————————————————————————————————
 // workoutType: "full_body" | "upper" | "lower" | "push" | "pull" | "legs" | "strength" | "custom"
-export const workoutTemplates = sqliteTable("workout_templates", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  workoutType: text("workout_type").notNull().default("custom"),
-  scheduledDay: text("scheduled_day"),  // "monday" | "tuesday" etc, or null
-  recurring: text("recurring").notNull().default("none"),
-  notes: text("notes"),
-  linkedGoalId: integer("linked_goal_id"),
-  // exercises stored as JSON array: [{name, sets, reps, weight, restSeconds, notes}]
-  exercisesJson: text("exercises_json").notNull().default("[]"),
+export const workoutTemplates = pgTable("workout_templates", {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    workoutType: text("workout_type").notNull().default("custom"),
+    scheduledDay: text("scheduled_day"), // "monday" | "tuesday" etc, or null
+    recurring: text("recurring").notNull().default("none"),
+    notes: text("notes"),
+    linkedGoalId: integer("linked_goal_id"),
+    // exercises stored as JSON array: [{name, sets, reps, weight, restSeconds, notes}]
+    exercisesJson: text("exercises_json").notNull().default("[]"),
 });
 
-// ── WORKOUT LOGS (actual completed sessions) ───────────────────────────────────
-export const workoutLogs = sqliteTable("workout_logs", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  templateId: integer("template_id"),  // null = ad-hoc
-  date: text("date").notNull(),
-  name: text("name").notNull(),
-  workoutType: text("workout_type").notNull().default("custom"),
-  durationMinutes: integer("duration_minutes"),
-  notes: text("notes"),
-  completed: integer("completed", { mode: "boolean" }).notNull().default(false),
-  // logged exercises: [{name, sets:[{reps,weight,rpe}], isPR, notes}]
-  exercisesJson: text("exercises_json").notNull().default("[]"),
-  linkedGoalId: integer("linked_goal_id"),
+// — WORKOUT LOGS (actual completed sessions) ——————————————————————
+export const workoutLogs = pgTable("workout_logs", {
+    id: serial("id").primaryKey(),
+    templateId: integer("template_id"), // null = ad-hoc
+    date: text("date").notNull(),
+    name: text("name").notNull(),
+    workoutType: text("workout_type").notNull().default("custom"),
+    durationMinutes: integer("duration_minutes"),
+    notes: text("notes"),
+    completed: boolean("completed").notNull().default(false),
+    exercisesJson: text("exercises_json").notNull().default("[]"),
+    linkedGoalId: integer("linked_goal_id"),
 });
 
-// ── GOALS (extended from events, now standalone) ───────────────────────────────
-// Goals are stored separately from events for richer linking
-export const goals = sqliteTable("goals", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  title: text("title").notNull(),
-  category: text("category").notNull().default("general"),
-  // progressType: "percent" | "count" | "sessions" | "pages" | "books" | "weight" | "boolean"
-  progressType: text("progress_type").notNull().default("percent"),
-  progressCurrent: real("progress_current").notNull().default(0),
-  progressTarget: real("progress_target").notNull().default(100),
-  priority: text("priority").notNull().default("medium"), // low | medium | high
-  startDate: text("start_date"),
-  targetDate: text("target_date"),
-  recurring: text("recurring").notNull().default("none"),
-  description: text("description"),
-  linkedBookId: integer("linked_book_id"),
-  linkedTemplateId: integer("linked_template_id"),
+// — GOALS ——————————————————————————————————————————————————
+export const goals = pgTable("goals", {
+    id: serial("id").primaryKey(),
+    title: text("title").notNull(),
+    category: text("category").notNull().default("general"),
+    progress_type: text("progress_type").notNull().default("percent"),
+    progressCurrent: real("progress_current").notNull().default(0),
+    progressTarget: real("progress_target").notNull().default(100),
+    priority: text("priority").notNull().default("medium"), // low | medium | high
+    startDate: text("start_date"),
+    targetDate: text("target_date"),
+    recurring: text("recurring").notNull().default("none"),
+    description: text("description"),
+    linkedBookId: integer("linked_book_id"),
+    linkedTemplateId: integer("linked_template_id"),
 });
 
-// ── PROJECTS (optionally linked to a Goal) ──────────────────────────────────
+// — PROJECTS (optionally linked to a Goal) ——————————————————————
 // status: "not_started" | "in_progress" | "done" | "blocked"
-export const projects = sqliteTable("projects", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  goalId: integer("goal_id"),  // nullable — null means standalone project
-  title: text("title").notNull(),
-  status: text("status").notNull().default("not_started"),
-  dueDate: text("due_date"),
-  description: text("description"),
-  sortOrder: integer("sort_order").notNull().default(0),
+export const projects = pgTable("projects", {
+    id: serial("id").primaryKey(),
+    goalId: integer("goal_id"), // nullable — null means standalone project
+    title: text("title").notNull(),
+    status: text("status").notNull().default("not_started"),
+    dueDate: text("due_date"),
+    description: text("description"),
+    sortOrder: integer("sort_order").notNull().default(0),
 });
 
-// ── PROJECT TASKS (children of Projects) ──────────────────────────────────────
-export const projectTasks = sqliteTable("project_tasks", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  projectId: integer("project_id").notNull(),  // always linked to a project
-  title: text("title").notNull(),
-  completed: integer("completed", { mode: "boolean" }).notNull().default(false),
-  dueDate: text("due_date"),
-  priority: text("priority").notNull().default("medium"),
-  notes: text("notes"),
-  sortOrder: integer("sort_order").notNull().default(0),
+// — PROJECT TASKS (children of Projects) ——————————————————————
+export const projectTasks = pgTable("project_tasks", {
+    id: serial("id").primaryKey(),
+    projectId: integer("project_id").notNull(), // always linked to a project
+    title: text("title").notNull(),
+    completed: boolean("completed").notNull().default(false),
+    dueDate: text("due_date"),
+    priority: text("priority").notNull().default("medium"),
+    notes: text("notes"),
+    sortOrder: integer("sort_order").notNull().default(0),
 });
 
-// ── RECIPES ─────────────────────────────────────────────────────
-export const recipes = sqliteTable("recipes", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  emoji: text("emoji").notNull().default("🍽️"),
-  category: text("category"),
-  prepTime: integer("prep_time"),
-  cookTime: integer("cook_time"),
-  // JSON: [{name: string, qty: string}][]
-  ingredientsJson: text("ingredients_json").notNull().default("[]"),
-  instructions: text("instructions"),
+// — WEEK PLAN ——————————————————————————————————————————————
+export const weekPlan = pgTable("week_plan", {
+    id: serial("id").primaryKey(),
+    dayIndex: integer("day_index").notNull(),
+    recipeId: integer("recipe_id").notNull(),
+    weekStart: text("week_start").notNull(), // ISO "YYYY-MM-DD" of the Monday
 });
 
-export const weekPlan = sqliteTable("week_plan", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  // 0=Sun, 1=Mon ... 6=Sat
-  dayIndex: integer("day_index").notNull(),
-  recipeId: integer("recipe_id").notNull(),
-  weekStart: text("week_start").notNull(), // ISO "YYYY-MM-DD" of the Monday
+// — RECIPES ——————————————————————————————————————————————————
+export const recipes = pgTable("recipes", {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    ingredients: text("ingredients").notNull().default("[]"),
+    instructions: text("instructions"),
+    prepTime: integer("prep_time"),
+    cookTime: integer("cook_time"),
+    servings: integer("servings"),
+    calories: integer("calories"),
+    notes: text("notes"),
+    category: text("category"),
+    imageUrl: text("image_url"),
 });
 
-export const groceryChecks = sqliteTable("grocery_checks", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  weekStart: text("week_start").notNull(),
-  itemKey: text("item_key").notNull(), // "ingredient_name" lowercase
-  checked: integer("checked", { mode: "boolean" }).notNull().default(false),
+export const groceryChecks = pgTable("grocery_checks", {
+    id: serial("id").primaryKey(),
+    weekStart: text("week_start").notNull(),
+    itemKey: text("item_key").notNull(), // "ingredient_name" lowercase
+    checked: boolean("checked").notNull().default(false),
 });
 
-export const insertRecipeSchema = createInsertSchema(recipes).omit({ id: true });
-export type InsertRecipe = z.infer<typeof insertRecipeSchema>;
-export type Recipe = typeof recipes.$inferSelect;
-
-export const insertWeekPlanSchema = createInsertSchema(weekPlan).omit({ id: true });
-export type InsertWeekPlan = z.infer<typeof insertWeekPlanSchema>;
-export type WeekPlan = typeof weekPlan.$inferSelect;
-
-export const insertGroceryCheckSchema = createInsertSchema(groceryChecks).omit({ id: true });
-export type InsertGroceryCheck = z.infer<typeof insertGroceryCheckSchema>;
-export type GroceryCheck = typeof groceryChecks.$inferSelect;
-
-export type RecipeIngredient = { name: string; qty: string };
-
-// ── RELATIONSHIP GROUPS ─────────────────────────────────────────────────────
-export const relationshipGroups = sqliteTable("relationship_groups", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),          // "Daycare", "Hometown", "Austin"
-  color: text("color"),                   // optional accent color
-  sortOrder: integer("sort_order").notNull().default(0),
+// — RELATIONSHIP GROUPS ——————————————————————————————————————
+export const relationshipGroups = pgTable("relationship_groups", {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(), // "Daycare", "Hometown", "Austin"
+    color: text("color"), // optional accent color
+    description: text("description"),
+    sortOrder: integer("sort_order").notNull().default(0),
 });
 
-// ── PEOPLE ───────────────────────────────────────────────────────────────────
-export const people = sqliteTable("people", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  groupId: integer("group_id"),           // nullable — can be ungrouped
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name"),
-  birthday: text("birthday"),             // ISO date "YYYY-MM-DD"
-  notes: text("notes"),
-  spouseId: integer("spouse_id"),         // self-ref to another person
-  // JSON array of person IDs who are children of this person: [1, 2, 3]
-  childrenJson: text("children_json").notNull().default("[]"),
-  // linked birthday event id (for syncing)
-  birthdayEventId: integer("birthday_event_id"),
-  sortOrder: integer("sort_order").notNull().default(0),
+// — PEOPLE ——————————————————————————————————————————————————
+export const people = pgTable("people", {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    groupId: integer("group_id"),
+    relationship: text("relationship"),
+    birthday: text("birthday"),
+    notes: text("notes"),
+    spouseId: integer("spouse_id"),
+    childrenJson: text("children_json").notNull().default("[]"),
+    birthdayEventId: integer("birthday_event_id"),
+    sortOrder: integer("sort_order").notNull().default(0),
 });
 
-// ── GENERAL TASKS (standalone — not linked to any project or goal) ────────────
-export const generalTasks = sqliteTable("general_tasks", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  title: text("title").notNull(),
-  completed: integer("completed", { mode: "boolean" }).notNull().default(false),
-  dueDate: text("due_date"),
-  priority: text("priority").notNull().default("medium"),
-  notes: text("notes"),
-  sortOrder: integer("sort_order").notNull().default(0),
+// — GENERAL TASKS (standalone — not linked to any project or goal) ——————————————
+export const generalTasks = pgTable("general_tasks", {
+    id: serial("id").primaryKey(),
+    title: text("title").notNull(),
+    completed: boolean("completed").notNull().default(false),
+    dueDate: text("due_date"),
+    priority: text("priority").notNull().default("medium"),
+    notes: text("notes"),
+    sortOrder: integer("sort_order").notNull().default(0),
 });
 
-// ── GOAL TASKS (legacy — keep for migration, now unused in UI) ─────────────────
-export const goalTasks = sqliteTable("goal_tasks", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  goalId: integer("goal_id").notNull(),
-  title: text("title").notNull(),
-  completed: integer("completed", { mode: "boolean" }).notNull().default(false),
-  dueDate: text("due_date"),
-  notes: text("notes"),
-  sortOrder: integer("sort_order").notNull().default(0),
+// — GOAL TASKS (legacy — keep for migration, now unused in UI) ——————————————
+export const goalTasks = pgTable("goal_tasks", {
+    id: serial("id").primaryKey(),
+    goalId: integer("goal_id").notNull(),
+    title: text("title").notNull(),
+    completed: boolean("completed").notNull().default(false),
+    dueDate: text("due_date"),
+    notes: text("notes"),
+    sortOrder: integer("sort_order").notNull().default(0),
 });
 
-// ── INSERT SCHEMAS & TYPES ─────────────────────────────────────────────────────
+// — INSERT SCHEMAS & TYPES ——————————————————————————————————
 export const insertEventSchema = createInsertSchema(events).omit({ id: true });
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Event = typeof events.$inferSelect;
@@ -265,6 +245,18 @@ export const insertGeneralTaskSchema = createInsertSchema(generalTasks).omit({ i
 export type InsertGeneralTask = z.infer<typeof insertGeneralTaskSchema>;
 export type GeneralTask = typeof generalTasks.$inferSelect;
 
+export const insertRecipeSchema = createInsertSchema(recipes).omit({ id: true });
+export type InsertRecipe = z.infer<typeof insertRecipeSchema>;
+export type Recipe = typeof recipes.$inferSelect;
+
+export const insertWeekPlanSchema = createInsertSchema(weekPlan).omit({ id: true });
+export type InsertWeekPlan = z.infer<typeof insertWeekPlanSchema>;
+export type WeekPlan = typeof weekPlan.$inferSelect;
+
+export const insertGroceryCheckSchema = createInsertSchema(groceryChecks).omit({ id: true });
+export type InsertGroceryCheck = z.infer<typeof insertGroceryCheckSchema>;
+export type GroceryCheck = typeof groceryChecks.$inferSelect;
+
 export const insertRelationshipGroupSchema = createInsertSchema(relationshipGroups).omit({ id: true });
 export type InsertRelationshipGroup = z.infer<typeof insertRelationshipGroupSchema>;
 export type RelationshipGroup = typeof relationshipGroups.$inferSelect;
@@ -273,11 +265,13 @@ export const insertPersonSchema = createInsertSchema(people).omit({ id: true });
 export type InsertPerson = z.infer<typeof insertPersonSchema>;
 export type Person = typeof people.$inferSelect;
 
+export type RecipeIngredient = { name: string; qty: string };
+
 // childrenJson stores an array of child person IDs: number[]
 // (Legacy: may also contain [{name, birthday}] objects — handle both gracefully)
 export type PersonWithSpouse = Person & { spouse?: Person | null };
 
-// ── COMPOSITE TYPES ────────────────────────────────────────────────────────────
+// — COMPOSITE TYPES ——————————————————————————————————————————
 export type EventWithTasks = Event & { tasks: Task[] };
 export type GoalWithTasks = Goal & { tasks: GoalTask[] }; // legacy
 export type ProjectWithTasks = Project & { tasks: ProjectTask[] };
@@ -289,12 +283,12 @@ export type WorkoutTemplateWithLogs = WorkoutTemplate & { recentLogs: WorkoutLog
 // Each set in a template can have its own reps + weight target
 export type TemplateSet = { reps: number; weight: number };
 export type TemplateExercise = {
-  name: string;
-  sets: TemplateSet[];   // array of individual sets
-  restSeconds: number;
-  notes: string;
+    name: string;
+    sets: TemplateSet[]; // array of individual sets
+    restSeconds: number;
+    notes: string;
 };
 export type LoggedSet = { reps: number; weight: number; rpe?: number };
 export type LoggedExercise = {
-  name: string; sets: LoggedSet[]; isPR: boolean; notes: string;
+    name: string; sets: LoggedSet[]; isPR: boolean; notes: string;
 };
