@@ -1,421 +1,441 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
+  users, profiles,
     events, tasks, recipes, weekPlan, groceryChecks, books, readingSessions,
-    workoutTemplates, workoutLogs, goals, goalTasks, projects, projectTasks,
-    generalTasks, relationshipGroups, people,
-} from "@shared/schema";
-import type {
-    InsertEvent, Event, InsertTask, Task, EventWithTasks,
-    InsertRecipe, Recipe, InsertWeekPlan, WeekPlan, InsertGroceryCheck, GroceryCheck,
-    InsertBook, Book, BookWithSessions,
-    InsertReadingSession, ReadingSession,
-    InsertWorkoutTemplate, WorkoutTemplate,
-    InsertWorkoutLog, WorkoutLog,
-    InsertGoal, Goal, GoalWithTasks, GoalWithProjects,
-    InsertGoalTask, GoalTask,
-    InsertProject, Project, ProjectWithTasks,
-    InsertProjectTask, ProjectTask,
-    InsertGeneralTask, GeneralTask,
-    InsertRelationshipGroup, RelationshipGroup,
-    InsertPerson, Person, PersonWithSpouse,
-} from "@shared/schema";
-import { eq, asc, desc, isNull } from "drizzle-orm";
+      workoutTemplates, workoutLogs, goals, goalTasks, projects, projectTasks,
+        generalTasks, relationshipGroups, people,
+        } from "@shared/schema";
+        import type {
+          InsertUser, User, InsertProfile, Profile,
+            InsertEvent, Event, InsertTask, Task, EventWithTasks,
+              InsertRecipe, Recipe, InsertWeekPlan, WeekPlan, InsertGroceryCheck, GroceryCheck,
+                InsertBook, Book, BookWithSessions, InsertReadingSession, ReadingSession,
+                  InsertWorkoutTemplate, WorkoutTemplate, InsertWorkoutLog, WorkoutLog,
+                    InsertGoal, Goal, GoalWithTasks, GoalWithProjects, InsertGoalTask, GoalTask,
+                      InsertProject, Project, ProjectWithTasks, InsertProjectTask, ProjectTask,
+                        InsertGeneralTask, GeneralTask,
+                          InsertRelationshipGroup, RelationshipGroup, InsertPerson, Person, PersonWithSpouse,
+                          } from "@shared/schema";
+                          import { eq, asc, desc, isNull, and } from "drizzle-orm";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle(pool);
+                          const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+                          export const db = drizzle(pool);
 
-// — Events ——————————————————————————————————————————————————
-export async function getAllEventsWithTasks(): Promise<EventWithTasks[]> {
-    const evts = await db.select().from(events).orderBy(asc(events.date));
-    const tsks = await db.select().from(tasks);
-    return evts.map((e) => ({
-          ...e,
-          tasks: tsks.filter((t) => t.eventId === e.id),
-    }));
-}
-export async function getEvent(id: number): Promise<Event | undefined> {
-    const rows = await db.select().from(events).where(eq(events.id, id));
-    return rows[0];
-}
-export async function createEvent(data: InsertEvent): Promise<Event> {
-    const rows = await db.insert(events).values(data).returning();
-    return rows[0];
-}
-export async function updateEvent(id: number, data: Partial<InsertEvent>): Promise<Event | undefined> {
-    const rows = await db.update(events).set(data).where(eq(events.id, id)).returning();
-    return rows[0];
-}
-export async function deleteEvent(id: number): Promise<boolean> {
-    const rows = await db.delete(events).where(eq(events.id, id)).returning();
-    return rows.length > 0;
-}
+                          // — Auth ——————————————————————————————————————————————————————
+                          export async function getUserByEmail(email: string): Promise<User | undefined> {
+                            const rows = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
+                              return rows[0];
+                              }
 
-// — Tasks ——————————————————————————————————————————————————
-export async function getTasksForEvent(eventId: number): Promise<Task[]> {
-    return db.select().from(tasks).where(eq(tasks.eventId, eventId)).orderBy(asc(tasks.sortOrder));
-}
-export async function createTask(data: InsertTask): Promise<Task> {
-    const rows = await db.insert(tasks).values(data).returning();
-    return rows[0];
-}
-export async function updateTask(id: number, data: Partial<InsertTask>): Promise<Task | undefined> {
-    const rows = await db.update(tasks).set(data).where(eq(tasks.id, id)).returning();
-    return rows[0];
-}
-export async function deleteTask(id: number): Promise<boolean> {
-    const rows = await db.delete(tasks).where(eq(tasks.id, id)).returning();
-    return rows.length > 0;
-}
+                              export async function getUserById(id: number): Promise<User | undefined> {
+                                const rows = await db.select().from(users).where(eq(users.id, id));
+                                  return rows[0];
+                                  }
 
-// — Books ——————————————————————————————————————————————————
-export async function getAllBooks(): Promise<Book[]> {
-    return db.select().from(books).orderBy(asc(books.sortOrder));
-}
-export async function getBook(id: number): Promise<Book | undefined> {
-    const rows = await db.select().from(books).where(eq(books.id, id));
-    return rows[0];
-}
-export async function getBookWithSessions(id: number): Promise<BookWithSessions | undefined> {
-    const book = await getBook(id);
-    if (!book) return undefined;
-    const sessions = await db.select().from(readingSessions).where(eq(readingSessions.bookId, id)).orderBy(desc(readingSessions.date));
-    return { ...book, sessions };
-}
-export async function createBook(data: InsertBook): Promise<Book> {
-    const rows = await db.insert(books).values(data).returning();
-    return rows[0];
-}
-export async function updateBook(id: number, data: Partial<InsertBook>): Promise<Book | undefined> {
-    const rows = await db.update(books).set(data).where(eq(books.id, id)).returning();
-    return rows[0];
-}
-export async function deleteBook(id: number): Promise<boolean> {
-    const rows = await db.delete(books).where(eq(books.id, id)).returning();
-    return rows.length > 0;
-}
+                                  export async function createUser(data: InsertUser): Promise<User> {
+                                    const rows = await db.insert(users).values({ ...data, email: data.email.toLowerCase() }).returning();
+                                      return rows[0];
+                                      }
 
-// — Reading Sessions ——————————————————————————————————————
-export async function getReadingSessionsForBook(bookId: number): Promise<ReadingSession[]> {
-    return db.select().from(readingSessions).where(eq(readingSessions.bookId, bookId)).orderBy(desc(readingSessions.date));
-}
-export async function createReadingSession(data: InsertReadingSession): Promise<ReadingSession> {
-    const rows = await db.insert(readingSessions).values(data).returning();
-    return rows[0];
-}
-export async function updateReadingSession(id: number, data: Partial<InsertReadingSession>): Promise<ReadingSession | undefined> {
-    const rows = await db.update(readingSessions).set(data).where(eq(readingSessions.id, id)).returning();
-    return rows[0];
-}
-export async function deleteReadingSession(id: number): Promise<boolean> {
-    const rows = await db.delete(readingSessions).where(eq(readingSessions.id, id)).returning();
-    return rows.length > 0;
-}
+                                      export async function getProfile(userId: number): Promise<Profile | undefined> {
+                                        const rows = await db.select().from(profiles).where(eq(profiles.userId, userId));
+                                          return rows[0];
+                                          }
 
-// — Workout Templates ——————————————————————————————————————
-export async function getAllWorkoutTemplates(): Promise<WorkoutTemplate[]> {
-    return db.select().from(workoutTemplates).orderBy(asc(workoutTemplates.name));
-}
-export async function getWorkoutTemplate(id: number): Promise<WorkoutTemplate | undefined> {
-    const rows = await db.select().from(workoutTemplates).where(eq(workoutTemplates.id, id));
-    return rows[0];
-}
-export async function createWorkoutTemplate(data: InsertWorkoutTemplate): Promise<WorkoutTemplate> {
-    const rows = await db.insert(workoutTemplates).values(data).returning();
-    return rows[0];
-}
-export async function updateWorkoutTemplate(id: number, data: Partial<InsertWorkoutTemplate>): Promise<WorkoutTemplate | undefined> {
-    const rows = await db.update(workoutTemplates).set(data).where(eq(workoutTemplates.id, id)).returning();
-    return rows[0];
-}
-export async function deleteWorkoutTemplate(id: number): Promise<boolean> {
-    const rows = await db.delete(workoutTemplates).where(eq(workoutTemplates.id, id)).returning();
-    return rows.length > 0;
-}
+                                          export async function upsertProfile(userId: number, data: Partial<InsertProfile>): Promise<Profile> {
+                                            const existing = await getProfile(userId);
+                                              if (existing) {
+                                                  const rows = await db.update(profiles).set({ ...data, updatedAt: new Date() }).where(eq(profiles.userId, userId)).returning();
+                                                      return rows[0];
+                                                        }
+                                                          const rows = await db.insert(profiles).values({ userId, displayName: null, bio: null, avatarUrl: null, ...data }).returning();
+                                                            return rows[0];
+                                                            }
 
-// — Workout Logs ——————————————————————————————————————————
-export async function getAllWorkoutLogs(): Promise<WorkoutLog[]> {
-    return db.select().from(workoutLogs).orderBy(desc(workoutLogs.date));
-}
-export async function getWorkoutLog(id: number): Promise<WorkoutLog | undefined> {
-    const rows = await db.select().from(workoutLogs).where(eq(workoutLogs.id, id));
-    return rows[0];
-}
-export async function createWorkoutLog(data: InsertWorkoutLog): Promise<WorkoutLog> {
-    const rows = await db.insert(workoutLogs).values(data).returning();
-    return rows[0];
-}
-export async function updateWorkoutLog(id: number, data: Partial<InsertWorkoutLog>): Promise<WorkoutLog | undefined> {
-    const rows = await db.update(workoutLogs).set(data).where(eq(workoutLogs.id, id)).returning();
-    return rows[0];
-}
-export async function deleteWorkoutLog(id: number): Promise<boolean> {
-    const rows = await db.delete(workoutLogs).where(eq(workoutLogs.id, id)).returning();
-    return rows.length > 0;
-}
+                                                            // — Events ——————————————————————————————————————————————————
+                                                            export async function getAllEventsWithTasks(userId: number): Promise<EventWithTasks[]> {
+                                                              const evts = await db.select().from(events).where(eq(events.userId, userId)).orderBy(asc(events.date));
+                                                                const tsks = await db.select().from(tasks).where(eq(tasks.userId, userId));
+                                                                  return evts.map((e) => ({ ...e, tasks: tsks.filter((t) => t.eventId === e.id) }));
+                                                                  }
 
-// — Goals ——————————————————————————————————————————————————
-export async function getAllGoalsWithProjects(): Promise<GoalWithProjects[]> {
-    const gs = await db.select().from(goals);
-    const ps = await db.select().from(projects);
-    const pts = await db.select().from(projectTasks);
-    return gs.map((g) => ({
-          ...g,
-          projects: ps
-            .filter((p) => p.goalId === g.id)
-            .map((p) => ({ ...p, tasks: pts.filter((t) => t.projectId === p.id) })),
-    }));
-}
-export async function getAllGoalsWithTasks(): Promise<GoalWithTasks[]> {
-    const gs = await db.select().from(goals);
-    const gts = await db.select().from(goalTasks);
-    return gs.map((g) => ({
-          ...g,
-          tasks: gts.filter((t) => t.goalId === g.id),
-    }));
-}
-export async function createGoal(data: InsertGoal): Promise<Goal> {
-    const rows = await db.insert(goals).values(data).returning();
-    return rows[0];
-}
-export async function updateGoal(id: number, data: Partial<InsertGoal>): Promise<Goal | undefined> {
-    const rows = await db.update(goals).set(data).where(eq(goals.id, id)).returning();
-    return rows[0];
-}
-export async function deleteGoal(id: number): Promise<boolean> {
-    const rows = await db.delete(goals).where(eq(goals.id, id)).returning();
-    return rows.length > 0;
-}
+                                                                  export async function getEvent(id: number, userId: number): Promise<Event | undefined> {
+                                                                    const rows = await db.select().from(events).where(and(eq(events.id, id), eq(events.userId, userId)));
+                                                                      return rows[0];
+                                                                      }
 
-// — Goal Tasks (legacy) ————————————————————————————————————
-export async function createGoalTask(data: InsertGoalTask): Promise<GoalTask> {
-    const rows = await db.insert(goalTasks).values(data).returning();
-    return rows[0];
-}
-export async function updateGoalTask(id: number, data: Partial<InsertGoalTask>): Promise<GoalTask | undefined> {
-    const rows = await db.update(goalTasks).set(data).where(eq(goalTasks.id, id)).returning();
-    return rows[0];
-}
-export async function deleteGoalTask(id: number): Promise<boolean> {
-    const rows = await db.delete(goalTasks).where(eq(goalTasks.id, id)).returning();
-    return rows.length > 0;
-}
+                                                                      export async function createEvent(data: InsertEvent): Promise<Event> {
+                                                                        const rows = await db.insert(events).values(data).returning();
+                                                                          return rows[0];
+                                                                          }
 
-// — Projects ——————————————————————————————————————————————
-async function getProjectsWithTasks(ps: typeof projects.$inferSelect[]): Promise<ProjectWithTasks[]> {
-    const pts = await db.select().from(projectTasks);
-    return ps.map((p) => ({ ...p, tasks: pts.filter((t) => t.projectId === p.id) }));
-}
-export async function getProjectsForGoal(goalId: number): Promise<ProjectWithTasks[]> {
-    const ps = await db.select().from(projects).where(eq(projects.goalId, goalId)).orderBy(asc(projects.sortOrder));
-    return getProjectsWithTasks(ps);
-}
-export async function getStandaloneProjects(): Promise<ProjectWithTasks[]> {
-    const ps = await db.select().from(projects).where(isNull(projects.goalId)).orderBy(asc(projects.sortOrder));
-    return getProjectsWithTasks(ps);
-}
-export async function createProject(data: InsertProject): Promise<Project> {
-    const rows = await db.insert(projects).values(data).returning();
-    return rows[0];
-}
-export async function updateProject(id: number, data: Partial<InsertProject>): Promise<Project | undefined> {
-    const rows = await db.update(projects).set(data).where(eq(projects.id, id)).returning();
-    return rows[0];
-}
-export async function deleteProject(id: number): Promise<boolean> {
-    const rows = await db.delete(projects).where(eq(projects.id, id)).returning();
-    return rows.length > 0;
-}
+                                                                          export async function updateEvent(id: number, userId: number, data: Partial<InsertEvent>): Promise<Event | undefined> {
+                                                                            const rows = await db.update(events).set(data).where(and(eq(events.id, id), eq(events.userId, userId))).returning();
+                                                                              return rows[0];
+                                                                              }
 
-// — Project Tasks ——————————————————————————————————————————
-export async function createProjectTask(data: InsertProjectTask): Promise<ProjectTask> {
-    const rows = await db.insert(projectTasks).values(data).returning();
-    return rows[0];
-}
-export async function updateProjectTask(id: number, data: Partial<InsertProjectTask>): Promise<ProjectTask | undefined> {
-    const rows = await db.update(projectTasks).set(data).where(eq(projectTasks.id, id)).returning();
-    return rows[0];
-}
-export async function deleteProjectTask(id: number): Promise<boolean> {
-    const rows = await db.delete(projectTasks).where(eq(projectTasks.id, id)).returning();
-    return rows.length > 0;
-}
+                                                                              export async function deleteEvent(id: number, userId: number): Promise<boolean> {
+                                                                                const rows = await db.delete(events).where(and(eq(events.id, id), eq(events.userId, userId))).returning();
+                                                                                  return rows.length > 0;
+                                                                                  }
 
-// — General Tasks ——————————————————————————————————————————
-export async function getAllGeneralTasks(): Promise<GeneralTask[]> {
-    return db.select().from(generalTasks).orderBy(asc(generalTasks.sortOrder));
-}
-export async function createGeneralTask(data: InsertGeneralTask): Promise<GeneralTask> {
-    const rows = await db.insert(generalTasks).values(data).returning();
-    return rows[0];
-}
-export async function updateGeneralTask(id: number, data: Partial<InsertGeneralTask>): Promise<GeneralTask | undefined> {
-    const rows = await db.update(generalTasks).set(data).where(eq(generalTasks.id, id)).returning();
-    return rows[0];
-}
-export async function deleteGeneralTask(id: number): Promise<boolean> {
-    const rows = await db.delete(generalTasks).where(eq(generalTasks.id, id)).returning();
-    return rows.length > 0;
-}
+                                                                                  // — Tasks ———————————————————————————————————————————————————
+                                                                                  export async function getTasksForEvent(eventId: number, userId: number): Promise<Task[]> {
+                                                                                    return db.select().from(tasks).where(and(eq(tasks.eventId, eventId), eq(tasks.userId, userId))).orderBy(asc(tasks.sortOrder));
+                                                                                    }
 
-// — Recipes ————————————————————————————————————————————————
-export async function getAllRecipes(): Promise<Recipe[]> {
-    return db.select().from(recipes).orderBy(asc(recipes.name));
-}
-export async function createRecipe(data: InsertRecipe): Promise<Recipe> {
-    const rows = await db.insert(recipes).values(data).returning();
-    return rows[0];
-}
-export async function updateRecipe(id: number, data: Partial<InsertRecipe>): Promise<Recipe | undefined> {
-    const rows = await db.update(recipes).set(data).where(eq(recipes.id, id)).returning();
-    return rows[0];
-}
-export async function deleteRecipe(id: number): Promise<boolean> {
-    const rows = await db.delete(recipes).where(eq(recipes.id, id)).returning();
-    return rows.length > 0;
-}
+                                                                                    export async function createTask(data: InsertTask): Promise<Task> {
+                                                                                      const rows = await db.insert(tasks).values(data).returning();
+                                                                                        return rows[0];
+                                                                                        }
 
-// — Week Plan ——————————————————————————————————————————————
-export async function getWeekPlan(weekStart: string): Promise<WeekPlan[]> {
-    return db.select().from(weekPlan).where(eq(weekPlan.weekStart, weekStart));
-}
-export async function setWeekPlanItem(data: InsertWeekPlan): Promise<WeekPlan> {
-    const rows = await db.insert(weekPlan).values(data).returning();
-    return rows[0];
-}
-export async function deleteWeekPlanItem(id: number): Promise<boolean> {
-    const rows = await db.delete(weekPlan).where(eq(weekPlan.id, id)).returning();
-    return rows.length > 0;
-}
+                                                                                        export async function updateTask(id: number, userId: number, data: Partial<InsertTask>): Promise<Task | undefined> {
+                                                                                          const rows = await db.update(tasks).set(data).where(and(eq(tasks.id, id), eq(tasks.userId, userId))).returning();
+                                                                                            return rows[0];
+                                                                                            }
 
-// — Grocery Checks ——————————————————————————————————————————
-export async function getGroceryChecks(weekStart: string): Promise<GroceryCheck[]> {
-    return db.select().from(groceryChecks).where(eq(groceryChecks.weekStart, weekStart));
-}
-export async function setGroceryCheck(data: InsertGroceryCheck): Promise<GroceryCheck> {
-    const rows = await db.insert(groceryChecks).values(data).returning();
-    return rows[0];
-}
-export async function clearGroceryChecks(weekStart: string): Promise<void> {
-    await db.delete(groceryChecks).where(eq(groceryChecks.weekStart, weekStart));
-}
+                                                                                            export async function deleteTask(id: number, userId: number): Promise<boolean> {
+                                                                                              const rows = await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId))).returning();
+                                                                                                return rows.length > 0;
+                                                                                                }
 
-// — Relationship Groups —————————————————————————————————————
-export async function getAllRelationshipGroups(): Promise<RelationshipGroup[]> {
-    return db.select().from(relationshipGroups).orderBy(asc(relationshipGroups.sortOrder));
-}
-export async function createRelationshipGroup(data: InsertRelationshipGroup): Promise<RelationshipGroup> {
-    const rows = await db.insert(relationshipGroups).values(data).returning();
-    return rows[0];
-}
-export async function updateRelationshipGroup(id: number, data: Partial<InsertRelationshipGroup>): Promise<RelationshipGroup | undefined> {
-    const rows = await db.update(relationshipGroups).set(data).where(eq(relationshipGroups.id, id)).returning();
-    return rows[0];
-}
-export async function deleteRelationshipGroup(id: number): Promise<boolean> {
-    // Ungroup people belonging to this group
-  await db.update(people).set({ groupId: null }).where(eq(people.groupId, id));
-    const rows = await db.delete(relationshipGroups).where(eq(relationshipGroups.id, id)).returning();
-    return rows.length > 0;
-}
+                                                                                                // — Books ———————————————————————————————————————————————————
+                                                                                                export async function getAllBooks(userId: number): Promise<Book[]> {
+                                                                                                  return db.select().from(books).where(eq(books.userId, userId)).orderBy(asc(books.sortOrder));
+                                                                                                  }
 
-// — People —————————————————————————————————————————————————
-export async function getAllPeople(): Promise<PersonWithSpouse[]> {
-    const ps = await db.select().from(people).orderBy(asc(people.sortOrder));
-    // Attach spouse details
-  return ps.map((p) => ({
-        ...p,
-        spouse: p.spouseId ? (ps.find((s) => s.id === p.spouseId) ?? null) : null,
-  }));
-}
-export async function createPerson(data: InsertPerson): Promise<Person> {
-    const rows = await db.insert(people).values(data).returning();
-    return rows[0];
-}
-export async function updatePerson(id: number, data: Partial<InsertPerson>): Promise<Person | undefined> {
-    const rows = await db.update(people).set(data).where(eq(people.id, id)).returning();
-    return rows[0];
-}
-export async function deletePerson(id: number): Promise<boolean> {
-    // Remove spouse links pointing to this person
-  await db.update(people).set({ spouseId: null }).where(eq(people.spouseId, id));
-    // Delete linked birthday event if any
-  const person = await db.select().from(people).where(eq(people.id, id));
-    if (person[0]?.birthdayEventId) {
-          await db.delete(tasks).where(eq(tasks.eventId, person[0].birthdayEventId));
-          await db.delete(events).where(eq(events.id, person[0].birthdayEventId));
-    }
-    const rows = await db.delete(people).where(eq(people.id, id)).returning();
-    return rows.length > 0;
-}
+                                                                                                  export async function getBook(id: number, userId: number): Promise<Book | undefined> {
+                                                                                                    const rows = await db.select().from(books).where(and(eq(books.id, id), eq(books.userId, userId)));
+                                                                                                      return rows[0];
+                                                                                                      }
 
-// Re-export storage object for backward compatibility with routes.ts
-export const storage = {
-    getAllEventsWithTasks,
-    getEvent,
-    createEvent,
-    updateEvent,
-    deleteEvent,
-    getTasksForEvent,
-    createTask,
-    updateTask,
-    deleteTask,
-    getAllBooks,
-    getBook,
-    getBookWithSessions,
-    createBook,
-    updateBook,
-    deleteBook,
-    getReadingSessionsForBook,
-    createReadingSession,
-    updateReadingSession,
-    deleteReadingSession,
-    getAllWorkoutTemplates,
-    getWorkoutTemplate,
-    createWorkoutTemplate,
-    updateWorkoutTemplate,
-    deleteWorkoutTemplate,
-    getAllWorkoutLogs,
-    getWorkoutLog,
-    createWorkoutLog,
-    updateWorkoutLog,
-    deleteWorkoutLog,
-    getAllGoalsWithProjects,
-    getAllGoalsWithTasks,
-    createGoal,
-    updateGoal,
-    deleteGoal,
-    createGoalTask,
-    updateGoalTask,
-    deleteGoalTask,
-    getProjectsForGoal,
-    getStandaloneProjects,
-    createProject,
-    updateProject,
-    deleteProject,
-    createProjectTask,
-    updateProjectTask,
-    deleteProjectTask,
-    getAllGeneralTasks,
-    createGeneralTask,
-    updateGeneralTask,
-    deleteGeneralTask,
-    getAllRecipes,
-    createRecipe,
-    updateRecipe,
-    deleteRecipe,
-    getWeekPlan,
-    setWeekPlanItem,
-    deleteWeekPlanItem,
-    getGroceryChecks,
-    setGroceryCheck,
-    clearGroceryChecks,
-    getAllRelationshipGroups,
-    createRelationshipGroup,
-    updateRelationshipGroup,
-    deleteRelationshipGroup,
-    getAllPeople,
-    createPerson,
-    updatePerson,
-    deletePerson,
-};
+                                                                                                      export async function getBookWithSessions(id: number, userId: number): Promise<BookWithSessions | undefined> {
+                                                                                                        const book = await getBook(id, userId);
+                                                                                                          if (!book) return undefined;
+                                                                                                            const sessions = await db.select().from(readingSessions).where(and(eq(readingSessions.bookId, id), eq(readingSessions.userId, userId))).orderBy(desc(readingSessions.date));
+                                                                                                              return { ...book, sessions };
+                                                                                                              }
+
+                                                                                                              export async function createBook(data: InsertBook): Promise<Book> {
+                                                                                                                const rows = await db.insert(books).values(data).returning();
+                                                                                                                  return rows[0];
+                                                                                                                  }
+
+                                                                                                                  export async function updateBook(id: number, userId: number, data: Partial<InsertBook>): Promise<Book | undefined> {
+                                                                                                                    const rows = await db.update(books).set(data).where(and(eq(books.id, id), eq(books.userId, userId))).returning();
+                                                                                                                      return rows[0];
+                                                                                                                      }
+
+                                                                                                                      export async function deleteBook(id: number, userId: number): Promise<boolean> {
+                                                                                                                        const rows = await db.delete(books).where(and(eq(books.id, id), eq(books.userId, userId))).returning();
+                                                                                                                          return rows.length > 0;
+                                                                                                                          }
+
+                                                                                                                          // — Reading Sessions —————————————————————————————————————————
+                                                                                                                          export async function getAllReadingSessions(userId: number): Promise<ReadingSession[]> {
+                                                                                                                            return db.select().from(readingSessions).where(eq(readingSessions.userId, userId));
+                                                                                                                            }
+
+                                                                                                                            export async function getReadingSessionsForBook(bookId: number, userId: number): Promise<ReadingSession[]> {
+                                                                                                                              return db.select().from(readingSessions).where(and(eq(readingSessions.bookId, bookId), eq(readingSessions.userId, userId))).orderBy(desc(readingSessions.date));
+                                                                                                                              }
+
+                                                                                                                              export async function createReadingSession(data: InsertReadingSession): Promise<ReadingSession> {
+                                                                                                                                const rows = await db.insert(readingSessions).values(data).returning();
+                                                                                                                                  return rows[0];
+                                                                                                                                  }
+
+                                                                                                                                  export async function updateReadingSession(id: number, userId: number, data: Partial<InsertReadingSession>): Promise<ReadingSession | undefined> {
+                                                                                                                                    const rows = await db.update(readingSessions).set(data).where(and(eq(readingSessions.id, id), eq(readingSessions.userId, userId))).returning();
+                                                                                                                                      return rows[0];
+                                                                                                                                      }
+
+                                                                                                                                      export async function deleteReadingSession(id: number, userId: number): Promise<boolean> {
+                                                                                                                                        const rows = await db.delete(readingSessions).where(and(eq(readingSessions.id, id), eq(readingSessions.userId, userId))).returning();
+                                                                                                                                          return rows.length > 0;
+                                                                                                                                          }
+
+                                                                                                                                          // — Workout Templates ————————————————————————————————————————
+                                                                                                                                          export async function getAllWorkoutTemplates(userId: number): Promise<WorkoutTemplate[]> {
+                                                                                                                                            return db.select().from(workoutTemplates).where(eq(workoutTemplates.userId, userId)).orderBy(asc(workoutTemplates.name));
+                                                                                                                                            }
+
+                                                                                                                                            export async function getWorkoutTemplate(id: number, userId: number): Promise<WorkoutTemplate | undefined> {
+                                                                                                                                              const rows = await db.select().from(workoutTemplates).where(and(eq(workoutTemplates.id, id), eq(workoutTemplates.userId, userId)));
+                                                                                                                                                return rows[0];
+                                                                                                                                                }
+
+                                                                                                                                                export async function createWorkoutTemplate(data: InsertWorkoutTemplate): Promise<WorkoutTemplate> {
+                                                                                                                                                  const rows = await db.insert(workoutTemplates).values(data).returning();
+                                                                                                                                                    return rows[0];
+                                                                                                                                                    }
+
+                                                                                                                                                    export async function updateWorkoutTemplate(id: number, userId: number, data: Partial<InsertWorkoutTemplate>): Promise<WorkoutTemplate | undefined> {
+                                                                                                                                                      const rows = await db.update(workoutTemplates).set(data).where(and(eq(workoutTemplates.id, id), eq(workoutTemplates.userId, userId))).returning();
+                                                                                                                                                        return rows[0];
+                                                                                                                                                        }
+
+                                                                                                                                                        export async function deleteWorkoutTemplate(id: number, userId: number): Promise<boolean> {
+                                                                                                                                                          const rows = await db.delete(workoutTemplates).where(and(eq(workoutTemplates.id, id), eq(workoutTemplates.userId, userId))).returning();
+                                                                                                                                                            return rows.length > 0;
+                                                                                                                                                            }
+
+                                                                                                                                                            // — Workout Logs ————————————————————————————————————————————
+                                                                                                                                                            export async function getAllWorkoutLogs(userId: number): Promise<WorkoutLog[]> {
+                                                                                                                                                              return db.select().from(workoutLogs).where(eq(workoutLogs.userId, userId)).orderBy(desc(workoutLogs.date));
+                                                                                                                                                              }
+
+                                                                                                                                                              export async function getWorkoutLog(id: number, userId: number): Promise<WorkoutLog | undefined> {
+                                                                                                                                                                const rows = await db.select().from(workoutLogs).where(and(eq(workoutLogs.id, id), eq(workoutLogs.userId, userId)));
+                                                                                                                                                                  return rows[0];
+                                                                                                                                                                  }
+
+                                                                                                                                                                  export async function createWorkoutLog(data: InsertWorkoutLog): Promise<WorkoutLog> {
+                                                                                                                                                                    const rows = await db.insert(workoutLogs).values(data).returning();
+                                                                                                                                                                      return rows[0];
+                                                                                                                                                                      }
+
+                                                                                                                                                                      export async function updateWorkoutLog(id: number, userId: number, data: Partial<InsertWorkoutLog>): Promise<WorkoutLog | undefined> {
+                                                                                                                                                                        const rows = await db.update(workoutLogs).set(data).where(and(eq(workoutLogs.id, id), eq(workoutLogs.userId, userId))).returning();
+                                                                                                                                                                          return rows[0];
+                                                                                                                                                                          }
+
+                                                                                                                                                                          export async function deleteWorkoutLog(id: number, userId: number): Promise<boolean> {
+                                                                                                                                                                            const rows = await db.delete(workoutLogs).where(and(eq(workoutLogs.id, id), eq(workoutLogs.userId, userId))).returning();
+                                                                                                                                                                              return rows.length > 0;
+                                                                                                                                                                              }
+
+                                                                                                                                                                              // — Goals ————————————————————————————————————————————————————
+                                                                                                                                                                              export async function getAllGoalsWithProjects(userId: number): Promise<GoalWithProjects[]> {
+                                                                                                                                                                                const gs = await db.select().from(goals).where(eq(goals.userId, userId));
+                                                                                                                                                                                  const ps = await db.select().from(projects).where(eq(projects.userId, userId));
+                                                                                                                                                                                    const pts = await db.select().from(projectTasks).where(eq(projectTasks.userId, userId));
+                                                                                                                                                                                      return gs.map((g) => ({
+                                                                                                                                                                                          ...g,
+                                                                                                                                                                                              projects: ps.filter((p) => p.goalId === g.id).map((p) => ({ ...p, tasks: pts.filter((t) => t.projectId === p.id) })),
+                                                                                                                                                                                                }));
+                                                                                                                                                                                                }
+
+                                                                                                                                                                                                export async function getAllGoalsWithTasks(userId: number): Promise<GoalWithTasks[]> {
+                                                                                                                                                                                                  const gs = await db.select().from(goals).where(eq(goals.userId, userId));
+                                                                                                                                                                                                    const gts = await db.select().from(goalTasks).where(eq(goalTasks.userId, userId));
+                                                                                                                                                                                                      return gs.map((g) => ({ ...g, tasks: gts.filter((t) => t.goalId === g.id) }));
+                                                                                                                                                                                                      }
+
+                                                                                                                                                                                                      export async function createGoal(data: InsertGoal): Promise<Goal> {
+                                                                                                                                                                                                        const rows = await db.insert(goals).values(data).returning();
+                                                                                                                                                                                                          return rows[0];
+                                                                                                                                                                                                          }
+
+                                                                                                                                                                                                          export async function updateGoal(id: number, userId: number, data: Partial<InsertGoal>): Promise<Goal | undefined> {
+                                                                                                                                                                                                            const rows = await db.update(goals).set(data).where(and(eq(goals.id, id), eq(goals.userId, userId))).returning();
+                                                                                                                                                                                                              return rows[0];
+                                                                                                                                                                                                              }
+
+                                                                                                                                                                                                              export async function deleteGoal(id: number, userId: number): Promise<boolean> {
+                                                                                                                                                                                                                const rows = await db.delete(goals).where(and(eq(goals.id, id), eq(goals.userId, userId))).returning();
+                                                                                                                                                                                                                  return rows.length > 0;
+                                                                                                                                                                                                                  }
+
+                                                                                                                                                                                                                  // — Goal Tasks (legacy) ————————————————————————————————————
+                                                                                                                                                                                                                  export async function createGoalTask(data: InsertGoalTask): Promise<GoalTask> {
+                                                                                                                                                                                                                    const rows = await db.insert(goalTasks).values(data).returning();
+                                                                                                                                                                                                                      return rows[0];
+                                                                                                                                                                                                                      }
+
+                                                                                                                                                                                                                      export async function updateGoalTask(id: number, userId: number, data: Partial<InsertGoalTask>): Promise<GoalTask | undefined> {
+                                                                                                                                                                                                                        const rows = await db.update(goalTasks).set(data).where(and(eq(goalTasks.id, id), eq(goalTasks.userId, userId))).returning();
+                                                                                                                                                                                                                          return rows[0];
+                                                                                                                                                                                                                          }
+
+                                                                                                                                                                                                                          export async function deleteGoalTask(id: number, userId: number): Promise<boolean> {
+                                                                                                                                                                                                                            const rows = await db.delete(goalTasks).where(and(eq(goalTasks.id, id), eq(goalTasks.userId, userId))).returning();
+                                                                                                                                                                                                                              return rows.length > 0;
+                                                                                                                                                                                                                              }
+
+                                                                                                                                                                                                                              // — Projects ——————————————————————————————————————————————
+                                                                                                                                                                                                                              async function getProjectsWithTasks(ps: typeof projects.$inferSelect[], userId: number): Promise<ProjectWithTasks[]> {
+                                                                                                                                                                                                                                const pts = await db.select().from(projectTasks).where(eq(projectTasks.userId, userId));
+                                                                                                                                                                                                                                  return ps.map((p) => ({ ...p, tasks: pts.filter((t) => t.projectId === p.id) }));
+                                                                                                                                                                                                                                  }
+
+                                                                                                                                                                                                                                  export async function getProjectsForGoal(goalId: number, userId: number): Promise<ProjectWithTasks[]> {
+                                                                                                                                                                                                                                    const ps = await db.select().from(projects).where(and(eq(projects.goalId, goalId), eq(projects.userId, userId))).orderBy(asc(projects.sortOrder));
+                                                                                                                                                                                                                                      return getProjectsWithTasks(ps, userId);
+                                                                                                                                                                                                                                      }
+
+                                                                                                                                                                                                                                      export async function getStandaloneProjects(userId: number): Promise<ProjectWithTasks[]> {
+                                                                                                                                                                                                                                        const ps = await db.select().from(projects).where(and(isNull(projects.goalId), eq(projects.userId, userId))).orderBy(asc(projects.sortOrder));
+                                                                                                                                                                                                                                          return getProjectsWithTasks(ps, userId);
+                                                                                                                                                                                                                                          }
+
+                                                                                                                                                                                                                                          export async function createProject(data: InsertProject): Promise<Project> {
+                                                                                                                                                                                                                                            const rows = await db.insert(projects).values(data).returning();
+                                                                                                                                                                                                                                              return rows[0];
+                                                                                                                                                                                                                                              }
+
+                                                                                                                                                                                                                                              export async function updateProject(id: number, userId: number, data: Partial<InsertProject>): Promise<Project | undefined> {
+                                                                                                                                                                                                                                                const rows = await db.update(projects).set(data).where(and(eq(projects.id, id), eq(projects.userId, userId))).returning();
+                                                                                                                                                                                                                                                  return rows[0];
+                                                                                                                                                                                                                                                  }
+
+                                                                                                                                                                                                                                                  export async function deleteProject(id: number, userId: number): Promise<boolean> {
+                                                                                                                                                                                                                                                    const rows = await db.delete(projects).where(and(eq(projects.id, id), eq(projects.userId, userId))).returning();
+                                                                                                                                                                                                                                                      return rows.length > 0;
+                                                                                                                                                                                                                                                      }
+
+                                                                                                                                                                                                                                                      // — Project Tasks —————————————————————————————————————————
+                                                                                                                                                                                                                                                      export async function createProjectTask(data: InsertProjectTask): Promise<ProjectTask> {
+                                                                                                                                                                                                                                                        const rows = await db.insert(projectTasks).values(data).returning();
+                                                                                                                                                                                                                                                          return rows[0];
+                                                                                                                                                                                                                                                          }
+
+                                                                                                                                                                                                                                                          export async function updateProjectTask(id: number, userId: number, data: Partial<InsertProjectTask>): Promise<ProjectTask | undefined> {
+                                                                                                                                                                                                                                                            const rows = await db.update(projectTasks).set(data).where(and(eq(projectTasks.id, id), eq(projectTasks.userId, userId))).returning();
+                                                                                                                                                                                                                                                              return rows[0];
+                                                                                                                                                                                                                                                              }
+
+                                                                                                                                                                                                                                                              export async function deleteProjectTask(id: number, userId: number): Promise<boolean> {
+                                                                                                                                                                                                                                                                const rows = await db.delete(projectTasks).where(and(eq(projectTasks.id, id), eq(projectTasks.userId, userId))).returning();
+                                                                                                                                                                                                                                                                  return rows.length > 0;
+                                                                                                                                                                                                                                                                  }
+
+                                                                                                                                                                                                                                                                  // — General Tasks ————————————————————————————————————————
+                                                                                                                                                                                                                                                                  export async function getAllGeneralTasks(userId: number): Promise<GeneralTask[]> {
+                                                                                                                                                                                                                                                                    return db.select().from(generalTasks).where(eq(generalTasks.userId, userId)).orderBy(asc(generalTasks.sortOrder));
+                                                                                                                                                                                                                                                                    }
+
+                                                                                                                                                                                                                                                                    export async function createGeneralTask(data: InsertGeneralTask): Promise<GeneralTask> {
+                                                                                                                                                                                                                                                                      const rows = await db.insert(generalTasks).values(data).returning();
+                                                                                                                                                                                                                                                                        return rows[0];
+                                                                                                                                                                                                                                                                        }
+
+                                                                                                                                                                                                                                                                        export async function updateGeneralTask(id: number, userId: number, data: Partial<InsertGeneralTask>): Promise<GeneralTask | undefined> {
+                                                                                                                                                                                                                                                                          const rows = await db.update(generalTasks).set(data).where(and(eq(generalTasks.id, id), eq(generalTasks.userId, userId))).returning();
+                                                                                                                                                                                                                                                                            return rows[0];
+                                                                                                                                                                                                                                                                            }
+
+                                                                                                                                                                                                                                                                            export async function deleteGeneralTask(id: number, userId: number): Promise<boolean> {
+                                                                                                                                                                                                                                                                              const rows = await db.delete(generalTasks).where(and(eq(generalTasks.id, id), eq(generalTasks.userId, userId))).returning();
+                                                                                                                                                                                                                                                                                return rows.length > 0;
+                                                                                                                                                                                                                                                                                }
+
+                                                                                                                                                                                                                                                                                // — Recipes ——————————————————————————————————————————————
+                                                                                                                                                                                                                                                                                export async function getAllRecipes(userId: number): Promise<Recipe[]> {
+                                                                                                                                                                                                                                                                                  return db.select().from(recipes).where(eq(recipes.userId, userId)).orderBy(asc(recipes.name));
+                                                                                                                                                                                                                                                                                  }
+
+                                                                                                                                                                                                                                                                                  export async function createRecipe(data: InsertRecipe): Promise<Recipe> {
+                                                                                                                                                                                                                                                                                    const rows = await db.insert(recipes).values(data).returning();
+                                                                                                                                                                                                                                                                                      return rows[0];
+                                                                                                                                                                                                                                                                                      }
+
+                                                                                                                                                                                                                                                                                      export async function updateRecipe(id: number, userId: number, data: Partial<InsertRecipe>): Promise<Recipe | undefined> {
+                                                                                                                                                                                                                                                                                        const rows = await db.update(recipes).set(data).where(and(eq(recipes.id, id), eq(recipes.userId, userId))).returning();
+                                                                                                                                                                                                                                                                                          return rows[0];
+                                                                                                                                                                                                                                                                                          }
+
+                                                                                                                                                                                                                                                                                          export async function deleteRecipe(id: number, userId: number): Promise<boolean> {
+                                                                                                                                                                                                                                                                                            const rows = await db.delete(recipes).where(and(eq(recipes.id, id), eq(recipes.userId, userId))).returning();
+                                                                                                                                                                                                                                                                                              return rows.length > 0;
+                                                                                                                                                                                                                                                                                              }
+
+                                                                                                                                                                                                                                                                                              // — Week Plan ————————————————————————————————————————————
+                                                                                                                                                                                                                                                                                              export async function getWeekPlan(weekStart: string, userId: number): Promise<WeekPlan[]> {
+                                                                                                                                                                                                                                                                                                return db.select().from(weekPlan).where(and(eq(weekPlan.weekStart, weekStart), eq(weekPlan.userId, userId)));
+                                                                                                                                                                                                                                                                                                }
+
+                                                                                                                                                                                                                                                                                                export async function setWeekPlanItem(data: InsertWeekPlan): Promise<WeekPlan> {
+                                                                                                                                                                                                                                                                                                  const rows = await db.insert(weekPlan).values(data).returning();
+                                                                                                                                                                                                                                                                                                    return rows[0];
+                                                                                                                                                                                                                                                                                                    }
+
+                                                                                                                                                                                                                                                                                                    export async function deleteWeekPlanItem(id: number, userId: number): Promise<boolean> {
+                                                                                                                                                                                                                                                                                                      const rows = await db.delete(weekPlan).where(and(eq(weekPlan.id, id), eq(weekPlan.userId, userId))).returning();
+                                                                                                                                                                                                                                                                                                        return rows.length > 0;
+                                                                                                                                                                                                                                                                                                        }
+
+                                                                                                                                                                                                                                                                                                        // — Grocery Checks ————————————————————————————————————————
+                                                                                                                                                                                                                                                                                                        export async function getGroceryChecks(weekStart: string, userId: number): Promise<GroceryCheck[]> {
+                                                                                                                                                                                                                                                                                                          return db.select().from(groceryChecks).where(and(eq(groceryChecks.weekStart, weekStart), eq(groceryChecks.userId, userId)));
+                                                                                                                                                                                                                                                                                                          }
+
+                                                                                                                                                                                                                                                                                                          export async function setGroceryCheck(data: InsertGroceryCheck): Promise<GroceryCheck> {
+                                                                                                                                                                                                                                                                                                            const rows = await db.insert(groceryChecks).values(data).returning();
+                                                                                                                                                                                                                                                                                                              return rows[0];
+                                                                                                                                                                                                                                                                                                              }
+
+                                                                                                                                                                                                                                                                                                              export async function clearGroceryChecks(weekStart: string, userId: number): Promise<void> {
+                                                                                                                                                                                                                                                                                                                await db.delete(groceryChecks).where(and(eq(groceryChecks.weekStart, weekStart), eq(groceryChecks.userId, userId)));
+                                                                                                                                                                                                                                                                                                                }
+
+                                                                                                                                                                                                                                                                                                                // — Relationship Groups ————————————————————————————————————
+                                                                                                                                                                                                                                                                                                                export async function getAllRelationshipGroups(userId: number): Promise<RelationshipGroup[]> {
+                                                                                                                                                                                                                                                                                                                  return db.select().from(relationshipGroups).where(eq(relationshipGroups.userId, userId)).orderBy(asc(relationshipGroups.sortOrder));
+                                                                                                                                                                                                                                                                                                                  }
+
+                                                                                                                                                                                                                                                                                                                  export async function createRelationshipGroup(data: InsertRelationshipGroup): Promise<RelationshipGroup> {
+                                                                                                                                                                                                                                                                                                                    const rows = await db.insert(relationshipGroups).values(data).returning();
+                                                                                                                                                                                                                                                                                                                      return rows[0];
+                                                                                                                                                                                                                                                                                                                      }
+
+                                                                                                                                                                                                                                                                                                                      export async function updateRelationshipGroup(id: number, userId: number, data: Partial<InsertRelationshipGroup>): Promise<RelationshipGroup | undefined> {
+                                                                                                                                                                                                                                                                                                                        const rows = await db.update(relationshipGroups).set(data).where(and(eq(relationshipGroups.id, id), eq(relationshipGroups.userId, userId))).returning();
+                                                                                                                                                                                                                                                                                                                          return rows[0];
+                                                                                                                                                                                                                                                                                                                          }
+
+                                                                                                                                                                                                                                                                                                                          export async function deleteRelationshipGroup(id: number, userId: number): Promise<boolean> {
+                                                                                                                                                                                                                                                                                                                            await db.update(people).set({ groupId: null }).where(and(eq(people.groupId, id), eq(people.userId, userId)));
+                                                                                                                                                                                                                                                                                                                              const rows = await db.delete(relationshipGroups).where(and(eq(relationshipGroups.id, id), eq(relationshipGroups.userId, userId))).returning();
+                                                                                                                                                                                                                                                                                                                                return rows.length > 0;
+                                                                                                                                                                                                                                                                                                                                }
+
+                                                                                                                                                                                                                                                                                                                                // — People ———————————————————————————————————————————————
+                                                                                                                                                                                                                                                                                                                                export async function getAllPeople(userId: number): Promise<PersonWithSpouse[]> {
+                                                                                                                                                                                                                                                                                                                                  const ps = await db.select().from(people).where(eq(people.userId, userId)).orderBy(asc(people.sortOrder));
+                                                                                                                                                                                                                                                                                                                                    return ps.map((p) => ({ ...p, spouse: p.spouseId ? (ps.find((s) => s.id === p.spouseId) ?? null) : null }));
+                                                                                                                                                                                                                                                                                                                                    }
+
+                                                                                                                                                                                                                                                                                                                                    export async function createPerson(data: InsertPerson): Promise<Person> {
+                                                                                                                                                                                                                                                                                                                                      const rows = await db.insert(people).values(data).returning();
+                                                                                                                                                                                                                                                                                                                                        return rows[0];
+                                                                                                                                                                                                                                                                                                                                        }
+
+                                                                                                                                                                                                                                                                                                                                        export async function updatePerson(id: number, userId: number, data: Partial<InsertPerson>): Promise<Person | undefined> {
+                                                                                                                                                                                                                                                                                                                                          const rows = await db.update(people).set(data).where(and(eq(people.id, id), eq(people.userId, userId))).returning();
+                                                                                                                                                                                                                                                                                                                                            return rows[0];
+                                                                                                                                                                                                                                                                                                                                            }
+
+                                                                                                                                                                                                                                                                                                                                            export async function deletePerson(id: number, userId: number): Promise<boolean> {
+                                                                                                                                                                                                                                                                                                                                              await db.update(people).set({ spouseId: null }).where(and(eq(people.spouseId, id), eq(people.userId, userId)));
+                                                                                                                                                                                                                                                                                                                                                const person = await db.select().from(people).where(and(eq(people.id, id), eq(people.userId, userId)));
+                                                                                                                                                                                                                                                                                                                                                  if (person[0]?.birthdayEventId) {
+                                                                                                                                                                                                                                                                                                                                                      await db.delete(tasks).where(and(eq(tasks.eventId, person[0].birthdayEventId), eq(tasks.userId, userId)));
+                                                                                                                                                                                                                                                                                                                                                          await db.delete(events).where(and(eq(events.id, person[0].birthdayEventId), eq(events.userId, userId)));
+                                                                                                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                                                                                                              const rows = await db.delete(people).where(and(eq(people.id, id), eq(people.userId, userId))).returning();
+                                                                                                                                                                                                                                                                                                                                                                return rows.length > 0;
+                                                                                                                                                                                                                                                                                                                                                                }
+
+                                                                                                                                                                                                                                                                                                                                                                // Re-export storage object
+                                                                                                                                                                                                                                                                                                                                                                export const storage = {
+                                                                                                                                                                                                                                                                                                                                                                  getUserByEmail, getUserById, createUser, getProfile, upsertProfile,
+                                                                                                                                                                                                                                                                                                                                                                    getAllEventsWithTasks, getEvent, createEvent, updateEvent, deleteEvent,
+                                                                                                                                                                                                                                                                                                                                                                      getTasksForEvent, createTask, updateTask, deleteTask,
+                                                                                                                                                                                                                                                                                                                                                                        getAllBooks, getBook, getBookWithSessions, createBook, updateBook, deleteBook,
+                                                                                                                                                                                                                                                                                                                                                                          getReadingSessionsForBook, getAllReadingSessions, createReadingSession, updateReadingSession, deleteReadingSession,
+                                                                                                                                                                                                                                                                                                                                                                            getAllWorkoutTemplates, getWorkoutTemplate, createWorkoutTemplate, updateWorkoutTemplate, deleteWorkoutTemplate,
+                                                                                                                                                                                                                                                                                                                                                                              getAllWorkoutLogs, getWorkoutLog, createWorkoutLog, updateWorkoutLog, deleteWorkoutLog,
+                                                                                                                                                                                                                                                                                                                                                                                getAllGoalsWithProjects, getAllGoalsWithTasks, createGoal, updateGoal, deleteGoal,
+                                                                                                                                                                                                                                                                                                                                                                                  createGoalTask, updateGoalTask, deleteGoalTask,
+                                                                                                                                                                                                                                                                                                                                                                                    getProjectsForGoal, getStandaloneProjects, createProject, updateProject, deleteProject,
+                                                                                                                                                                                                                                                                                                                                                                                      createProjectTask, updateProjectTask, deleteProjectTask,
+                                                                                                                                                                                                                                                                                                                                                                                        getAllGeneralTasks, createGeneralTask, updateGeneralTask, deleteGeneralTask,
+                                                                                                                                                                                                                                                                                                                                                                                          getAllRecipes, createRecipe, updateRecipe, deleteRecipe,
+                                                                                                                                                                                                                                                                                                                                                                                            getWeekPlan, setWeekPlanItem, deleteWeekPlanItem,
+                                                                                                                                                                                                                                                                                                                                                                                              getGroceryChecks, setGroceryCheck, clearGroceryChecks,
+                                                                                                                                                                                                                                                                                                                                                                                                getAllRelationshipGroups, createRelationshipGroup, updateRelationshipGroup, deleteRelationshipGroup,
+                                                                                                                                                                                                                                                                                                                                                                                                  getAllPeople, createPerson, updatePerson, deletePerson,
+                                                                                                                                                                                                                                                                                                                                                                                                  };
+                                                                                                                                                                                                                                                                                                                                                                                                  

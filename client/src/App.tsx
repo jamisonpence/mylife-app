@@ -12,28 +12,48 @@ import ReadingPage from "@/pages/ReadingPage";
 import WorkoutsPage from "@/pages/WorkoutsPage";
 import RelationshipsPage from "@/pages/RelationshipsPage";
 import RecipesPage from "@/pages/RecipesPage";
+import ProfilePage from "@/pages/ProfilePage";
+import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
+import { useAuth } from "@/hooks/useAuth";
 
-export default function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <Router hook={useHashLocation}>
-          <AppShell>
-            <Switch>
-              <Route path="/" component={DashboardPage} />
-              <Route path="/calendar" component={CalendarPage} />
-              <Route path="/goals" component={GoalsPage} />
-              <Route path="/reading" component={ReadingPage} />
-              <Route path="/workouts" component={WorkoutsPage} />
-              <Route path="/relationships" component={RelationshipsPage} />
-              <Route path="/recipes" component={RecipesPage} />
-              <Route component={NotFound} />
-            </Switch>
-          </AppShell>
-        </Router>
-        <Toaster />
-      </ThemeProvider>
-    </QueryClientProvider>
-  );
-}
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+    if (isLoading) {
+        return (
+              <div className="min-h-screen flex items-center justify-center">
+                      <div className="text-muted-foreground text-sm">Loading...</div>
+                            </div>
+                                );
+                                  }
+                                    if (!user) return <AuthPage />;
+                                      return <>{children}</>;
+                                      }
+
+                                      export default function App() {
+                                        return (
+                                            <QueryClientProvider client={queryClient}>
+                                                  <ThemeProvider>
+                                                          <Router hook={useHashLocation}>
+                                                                    <AuthGuard>
+                                                                                <AppShell>
+                                                                                              <Switch>
+                                                                                                              <Route path="/" component={DashboardPage} />
+                                                                                                                              <Route path="/calendar" component={CalendarPage} />
+                                                                                                                                              <Route path="/goals" component={GoalsPage} />
+                                                                                                                                                              <Route path="/reading" component={ReadingPage} />
+                                                                                                                                                                              <Route path="/workouts" component={WorkoutsPage} />
+                                                                                                                                                                                              <Route path="/relationships" component={RelationshipsPage} />
+                                                                                                                                                                                                              <Route path="/recipes" component={RecipesPage} />
+                                                                                                                                                                                                                              <Route path="/profile" component={ProfilePage} />
+                                                                                                                                                                                                                                              <Route component={NotFound} />
+                                                                                                                                                                                                                                                            </Switch>
+                                                                                                                                                                                                                                                                        </AppShell>
+                                                                                                                                                                                                                                                                                  </AuthGuard>
+                                                                                                                                                                                                                                                                                          </Router>
+                                                                                                                                                                                                                                                                                                  <Toaster />
+                                                                                                                                                                                                                                                                                                        </ThemeProvider>
+                                                                                                                                                                                                                                                                                                            </QueryClientProvider>
+                                                                                                                                                                                                                                                                                                              );
+                                                                                                                                                                                                                                                                                                              }
+                                                                                                                                                                                                                                                                                                              
