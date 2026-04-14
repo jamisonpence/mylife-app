@@ -7,7 +7,7 @@ import {
         generalTasks, relationshipGroups, people,
         } from "@shared/schema";
         import type {
-          InsertUser, User, InsertProfile, Profile,
+          InsertUser, InsertGoogleUser, User, InsertProfile, Profile,
             InsertEvent, Event, InsertTask, Task, EventWithTasks,
               InsertRecipe, Recipe, InsertWeekPlan, WeekPlan, InsertGroceryCheck, GroceryCheck,
                 InsertBook, Book, BookWithSessions, InsertReadingSession, ReadingSession,
@@ -37,6 +37,21 @@ import {
                                     const rows = await db.insert(users).values({ ...data, email: data.email.toLowerCase() }).returning();
                                       return rows[0];
                                       }
+
+                                  export async function getUserByGoogleId(googleId: string): Promise<User | undefined> {
+                                    const rows = await db.select().from(users).where(eq(users.googleId, googleId));
+                                    return rows[0];
+                                  }
+
+                                  export async function createGoogleUser(data: InsertGoogleUser): Promise<User> {
+                                    const rows = await db.insert(users).values({ email: data.email.toLowerCase(), googleId: data.googleId }).returning();
+                                    return rows[0];
+                                  }
+
+                                  export async function linkGoogleId(userId: number, googleId: string): Promise<User> {
+                                    const rows = await db.update(users).set({ googleId }).where(eq(users.id, userId)).returning();
+                                    return rows[0];
+                                  }
 
                                       export async function getProfile(userId: number): Promise<Profile | undefined> {
                                         const rows = await db.select().from(profiles).where(eq(profiles.userId, userId));
@@ -420,7 +435,7 @@ import {
 
                                                                                                                                                                                                                                                                                                                                                                 // Re-export storage object
                                                                                                                                                                                                                                                                                                                                                                 export const storage = {
-                                                                                                                                                                                                                                                                                                                                                                  getUserByEmail, getUserById, createUser, getProfile, upsertProfile,
+                                                                                                                                                                                                                                                                                                                                                                  getUserByEmail, getUserById, createUser, getUserByGoogleId, createGoogleUser, linkGoogleId, getProfile, upsertProfile,
                                                                                                                                                                                                                                                                                                                                                                     getAllEventsWithTasks, getEvent, createEvent, updateEvent, deleteEvent,
                                                                                                                                                                                                                                                                                                                                                                       getTasksForEvent, createTask, updateTask, deleteTask,
                                                                                                                                                                                                                                                                                                                                                                         getAllBooks, getBook, getBookWithSessions, createBook, updateBook, deleteBook,
