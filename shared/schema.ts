@@ -6,8 +6,9 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
     email: text("email").notNull().unique(),
-      passwordHash: text("password_hash").notNull(),
-        createdAt: timestamp("created_at").notNull().defaultNow(),
+  passwordHash: text("password_hash"),        // nullable — OAuth users have no password
+  googleId: text("google_id").unique(),       // Google OAuth sub
+  createdAt: timestamp("created_at").notNull().defaultNow(),
         });
 
         // — PROFILES ——————————————————————————————————————————————
@@ -21,8 +22,9 @@ export const users = pgTable("users", {
                     });
 
                     // Auth schemas/types
-                    export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+                    export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, googleId: true });
                     export type InsertUser = z.infer<typeof insertUserSchema>;
+                    export type InsertGoogleUser = { email: string; googleId: string; };
                     export type User = typeof users.$inferSelect;
 
                     export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true, updatedAt: true });
