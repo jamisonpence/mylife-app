@@ -58,6 +58,16 @@ import {
 
                                                                                                                                                                     app.get("/api/auth/me", (req, res) => {
                                                                                                                                                                         if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+
+  // — Google OAuth ————————————————————————
+  app.get("/api/auth/google",
+    passport.authenticate("google", { scope: ["openid", "email", "profile"] })
+  );
+
+  app.get("/api/auth/google/callback",
+    passport.authenticate("google", { failureRedirect: "/login?error=google_failed" }),
+    (_req, res) => { res.redirect("/"); }
+  );
                                                                                                                                                                             const user = req.user as any;
                                                                                                                                                                                 res.json({ id: user.id, email: user.email });
                                                                                                                                                                                   });
