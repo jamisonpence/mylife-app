@@ -1,2 +1,5 @@
 [phases.install]
 cmds = ["npm install"]
+
+[start]
+cmd = "npx drizzle-kit push --force && node dist/index.cjs"
