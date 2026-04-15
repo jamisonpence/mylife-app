@@ -58,7 +58,9 @@ import {
 
                                                                                                                                                                     app.get("/api/auth/me", (req, res) => {
                                                                                                                                                                         if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
-
+                                                                                                                                                                            const user = req.user as any;
+                                                                                                                                                                                res.json({ id: user.id, email: user.email });
+                                                                                                                                                                                  });
   // — Google OAuth ————————————————————————
   app.get("/api/auth/google",
     passport.authenticate("google", { scope: ["openid", "email", "profile"] })
@@ -68,9 +70,7 @@ import {
     passport.authenticate("google", { failureRedirect: "/login?error=google_failed" }),
     (_req, res) => { res.redirect("/"); }
   );
-                                                                                                                                                                            const user = req.user as any;
-                                                                                                                                                                                res.json({ id: user.id, email: user.email });
-                                                                                                                                                                                  });
+
 
                                                                                                                                                                                     // — Profile ——————————————————————————————————————————
                                                                                                                                                                                       app.get("/api/profile", requireAuth, async (req, res) => {
