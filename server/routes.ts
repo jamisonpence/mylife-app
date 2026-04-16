@@ -456,5 +456,40 @@ import {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   } catch (e) { handleError(res, e); }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     });
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      return _httpServer;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+  // groups alias routes
+  app.get("/api/groups", requireAuth, async (req, res) => {
+    try { res.json(await storage.getAllRelationshipGroups(uid(req))); }
+    catch (e) { handleError(res, e); }
+  });
+
+  app.post("/api/groups", requireAuth, async (req, res) => {
+    try {
+      res.status(201).json(await storage.createRelationshipGroup({ ...insertRelationshipGroupSchema.parse(req.body), userId: uid(req) }));
+    } catch (e) { handleError(res, e); }
+  });
+
+  app.patch("/api/groups/:id", requireAuth, async (req, res) => {
+    try {
+      const r = await storage.updateRelationshipGroup(+req.params.id, uid(req), insertRelationshipGroupSchema.partial().parse(req.body));
+      r ? res.json(r) : res.status(404).json({ error: "Not found" });
+    } catch (e) { handleError(res, e); }
+  });
+
+  app.delete("/api/groups/:id", requireAuth, async (req, res) => {
+    try {
+      await storage.deleteRelationshipGroup(+req.params.id, uid(req)) ? res.json({ ok: true }) : res.status(404).json({ error: "Not found" });
+    } catch (e) { handleError(res, e); }
+  });
+
+  app.post("/api/people/:id/link-spouse", requireAuth, async (req, res) => {
+    try {
+      const personId = +req.params.id;
+      const { spouseId } = req.body;
+      const r = await storage.updatePerson(personId, uid(req), { spouseId: spouseId ?? null });
+      if (spouseId) await storage.updatePerson(spouseId, uid(req), { spouseId: personId });
+      r ? res.json(r) : res.status(404).json({ error: "Not found" });
+    } catch (e) { handleError(res, e); }
+  });
+return _httpServer;
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       }
