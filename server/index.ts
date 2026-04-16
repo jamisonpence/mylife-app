@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { Pool } from "pg";
 
 const app = express();
 app.set("trust proxy", 1); // required for secure cookies behind Railway's proxy
@@ -61,6 +62,31 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+
+  // Run one-time migration: people.name -> first_name / last_name
+  try {
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'people' AND column_name = 'name'
+        ) THEN
+          ALTER TABLE people ADD COLUMN IF NOT EXISTS first_name TEXT;
+          ALTER TABLE people ADD COLUMN IF NOT EXISTS last_name TEXT;
+          UPDATE people SET first_name = name WHERE first_name IS NULL;
+          UPDATE people SET first_name = 'Unknown' WHERE first_name IS NULL;
+          ALTER TABLE people DROP COLUMN name;
+        END IF;
+      END $$;
+    `);
+    await pool.end();
+    console.log('[migrate] people name->first_name done');
+  } catch (e) {
+    console.error('[migrate] error:', e);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
