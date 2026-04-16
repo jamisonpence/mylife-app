@@ -5,319 +5,323 @@ import { z } from "zod";
 // — USERS ——————————————————————————————————————————————————
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-    email: text("email").notNull().unique(),
+  email: text("email").notNull().unique(),
   passwordHash: text("password_hash"),        // nullable — OAuth users have no password
   googleId: text("google_id").unique(),       // Google OAuth sub
   createdAt: timestamp("created_at").notNull().defaultNow(),
-        });
+});
 
-        // — PROFILES ——————————————————————————————————————————————
-        export const profiles = pgTable("profiles", {
-          id: serial("id").primaryKey(),
-            userId: integer("user_id").notNull().unique(),
-              displayName: text("display_name"),
-                bio: text("bio"),
-                  avatarUrl: text("avatar_url"),
-                    updatedAt: timestamp("updated_at").notNull().defaultNow(),
-                    });
+// — PROFILES ——————————————————————————————————————————————
+export const profiles = pgTable("profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  displayName: text("display_name"),
+  bio: text("bio"),
+  avatarUrl: text("avatar_url"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
 
-                    // Auth schemas/types
-                    export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, googleId: true });
-                    export type InsertUser = z.infer<typeof insertUserSchema>;
-                    export type InsertGoogleUser = { email: string; googleId: string; };
-                    export type User = typeof users.$inferSelect;
+// Auth schemas/types
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, googleId: true });
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertGoogleUser = { email: string; googleId: string; };
+export type User = typeof users.$inferSelect;
 
-                    export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true, updatedAt: true });
-                    export type InsertProfile = z.infer<typeof insertProfileSchema>;
-                    export type Profile = typeof profiles.$inferSelect;
+export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true, updatedAt: true, userId: true });
+export type InsertProfile = z.infer<typeof insertProfileSchema> & { userId?: number };
+export type Profile = typeof profiles.$inferSelect;
 
-                    // — EVENTS (existing, extended) ————————————————————————————
-                    export const events = pgTable("events", {
-                      id: serial("id").primaryKey(),
-                        userId: integer("user_id").notNull(),
-                          title: text("title").notNull(),
-                            date: text("date").notNull(),
-                              endDate: text("end_date"),
-                                category: text("category").notNull().default("other"),
-                                  recurring: text("recurring").notNull().default("none"),
-                                    description: text("description"),
-                                      color: text("color"),
-                                      });
+// — EVENTS (existing, extended) ————————————————————————————
+export const events = pgTable("events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  date: text("date").notNull(),
+  endDate: text("end_date"),
+  category: text("category").notNull().default("other"),
+  recurring: text("recurring").notNull().default("none"),
+  description: text("description"),
+  color: text("color"),
+});
 
-                                      // — TASKS (existing, unchanged) ————————————————————————————
-                                      export const tasks = pgTable("tasks", {
-                                        id: serial("id").primaryKey(),
-                                          userId: integer("user_id").notNull(),
-                                            eventId: integer("event_id").notNull(),
-                                              title: text("title").notNull(),
-                                                completed: boolean("completed").notNull().default(false),
-                                                  dueDate: text("due_date"),
-                                                    notes: text("notes"),
-                                                      sortOrder: integer("sort_order").notNull().default(0),
-                                                      });
+// — TASKS (existing, unchanged) ————————————————————————————
+export const tasks = pgTable("tasks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  eventId: integer("event_id").notNull(),
+  title: text("title").notNull(),
+  completed: boolean("completed").notNull().default(false),
+  dueDate: text("due_date"),
+  notes: text("notes"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
 
-                                                      // — BOOKS —————————————————————————————————————————————————
-                                                      export const books = pgTable("books", {
-                                                        id: serial("id").primaryKey(),
-                                                          userId: integer("user_id").notNull(),
-                                                            title: text("title").notNull(),
-                                                              author: text("author"),
-                                                                status: text("status").notNull().default("backlog"),
-                                                                  totalPages: integer("total_pages"),
-                                                                    currentPage: integer("current_page").notNull().default(0),
-                                                                      startDate: text("start_date"),
-                                                                        finishDate: text("finish_date"),
-                                                                          notes: text("notes"),
-                                                                            coverUrl: text("cover_url"),
-                                                                              genre: text("genre"),
-                                                                                rating: integer("rating"),
-                                                                                  sortOrder: integer("sort_order").notNull().default(0),
-                                                                                  });
+// — BOOKS —————————————————————————————————————————————————
+export const books = pgTable("books", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  author: text("author"),
+  status: text("status").notNull().default("backlog"),
+  totalPages: integer("total_pages"),
+  currentPage: integer("current_page").notNull().default(0),
+  startDate: text("start_date"),
+  finishDate: text("finish_date"),
+  notes: text("notes"),
+  coverUrl: text("cover_url"),
+  genre: text("genre"),
+  rating: integer("rating"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
 
-                                                                                  export const readingSessions = pgTable("reading_sessions", {
-                                                                                    id: serial("id").primaryKey(),
-                                                                                      userId: integer("user_id").notNull(),
-                                                                                        bookId: integer("book_id").notNull(),
-                                                                                          date: text("date").notNull(),
-                                                                                            pagesRead: integer("pages_read").notNull().default(0),
-                                                                                              durationMinutes: integer("duration_minutes"),
-                                                                                                notes: text("notes"),
-                                                                                                  planned: boolean("planned").notNull().default(false),
-                                                                                                    completed: boolean("completed").notNull().default(false),
-                                                                                                      recurring: text("recurring").notNull().default("none"),
-                                                                                                      });
+export const readingSessions = pgTable("reading_sessions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  bookId: integer("book_id").notNull(),
+  date: text("date").notNull(),
+  pagesRead: integer("pages_read").notNull().default(0),
+  durationMinutes: integer("duration_minutes"),
+  notes: text("notes"),
+  planned: boolean("planned").notNull().default(false),
+  completed: boolean("completed").notNull().default(false),
+  recurring: text("recurring").notNull().default("none"),
+});
 
-                                                                                                      // — WORKOUT TEMPLATES ——————————————————————————————————————
-                                                                                                      export const workoutTemplates = pgTable("workout_templates", {
-                                                                                                        id: serial("id").primaryKey(),
-                                                                                                          userId: integer("user_id").notNull(),
-                                                                                                            name: text("name").notNull(),
-                                                                                                              workoutType: text("workout_type").notNull().default("custom"),
-                                                                                                                scheduledDay: text("scheduled_day"),
-                                                                                                                  recurring: text("recurring").notNull().default("none"),
-                                                                                                                    notes: text("notes"),
-                                                                                                                      linkedGoalId: integer("linked_goal_id"),
-                                                                                                                        exercisesJson: text("exercises_json").notNull().default("[]"),
-                                                                                                                        });
+// — WORKOUT TEMPLATES ——————————————————————————————————————
+export const workoutTemplates = pgTable("workout_templates", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  name: text("name").notNull(),
+  workoutType: text("workout_type").notNull().default("custom"),
+  scheduledDay: text("scheduled_day"),
+  recurring: text("recurring").notNull().default("none"),
+  notes: text("notes"),
+  linkedGoalId: integer("linked_goal_id"),
+  exercisesJson: text("exercises_json").notNull().default("[]"),
+});
 
-                                                                                                                        // — WORKOUT LOGS ———————————————————————————————————————————
-                                                                                                                        export const workoutLogs = pgTable("workout_logs", {
-                                                                                                                          id: serial("id").primaryKey(),
-                                                                                                                            userId: integer("user_id").notNull(),
-                                                                                                                              templateId: integer("template_id"),
-                                                                                                                                date: text("date").notNull(),
-                                                                                                                                  name: text("name").notNull(),
-                                                                                                                                    workoutType: text("workout_type").notNull().default("custom"),
-                                                                                                                                      durationMinutes: integer("duration_minutes"),
-                                                                                                                                        notes: text("notes"),
-                                                                                                                                          completed: boolean("completed").notNull().default(false),
-                                                                                                                                            exercisesJson: text("exercises_json").notNull().default("[]"),
-                                                                                                                                              linkedGoalId: integer("linked_goal_id"),
-                                                                                                                                              });
+// — WORKOUT LOGS ———————————————————————————————————————————
+export const workoutLogs = pgTable("workout_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  templateId: integer("template_id"),
+  date: text("date").notNull(),
+  name: text("name").notNull(),
+  workoutType: text("workout_type").notNull().default("custom"),
+  durationMinutes: integer("duration_minutes"),
+  notes: text("notes"),
+  completed: boolean("completed").notNull().default(false),
+  exercisesJson: text("exercises_json").notNull().default("[]"),
+  linkedGoalId: integer("linked_goal_id"),
+});
 
-                                                                                                                                              // — GOALS —————————————————————————————————————————————————
-                                                                                                                                              export const goals = pgTable("goals", {
-                                                                                                                                                id: serial("id").primaryKey(),
-                                                                                                                                                  userId: integer("user_id").notNull(),
-                                                                                                                                                    title: text("title").notNull(),
-                                                                                                                                                      category: text("category").notNull().default("general"),
-                                                                                                                                                        progress_type: text("progress_type").notNull().default("percent"),
-                                                                                                                                                          progressCurrent: real("progress_current").notNull().default(0),
-                                                                                                                                                            progressTarget: real("progress_target").notNull().default(100),
-                                                                                                                                                              priority: text("priority").notNull().default("medium"),
-                                                                                                                                                                startDate: text("start_date"),
-                                                                                                                                                                  targetDate: text("target_date"),
-                                                                                                                                                                    recurring: text("recurring").notNull().default("none"),
-                                                                                                                                                                      description: text("description"),
-                                                                                                                                                                        linkedBookId: integer("linked_book_id"),
-                                                                                                                                                                          linkedTemplateId: integer("linked_template_id"),
-                                                                                                                                                                          });
+// — GOALS —————————————————————————————————————————————————
+export const goals = pgTable("goals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  category: text("category").notNull().default("general"),
+  progress_type: text("progress_type").notNull().default("percent"),
+  progressCurrent: real("progress_current").notNull().default(0),
+  progressTarget: real("progress_target").notNull().default(100),
+  priority: text("priority").notNull().default("medium"),
+  startDate: text("start_date"),
+  targetDate: text("target_date"),
+  recurring: text("recurring").notNull().default("none"),
+  description: text("description"),
+  linkedBookId: integer("linked_book_id"),
+  linkedTemplateId: integer("linked_template_id"),
+});
 
-                                                                                                                                                                          // — PROJECTS ———————————————————————————————————————————————
-                                                                                                                                                                          export const projects = pgTable("projects", {
-                                                                                                                                                                            id: serial("id").primaryKey(),
-                                                                                                                                                                              userId: integer("user_id").notNull(),
-                                                                                                                                                                                goalId: integer("goal_id"),
-                                                                                                                                                                                  title: text("title").notNull(),
-                                                                                                                                                                                    status: text("status").notNull().default("not_started"),
-                                                                                                                                                                                      dueDate: text("due_date"),
-                                                                                                                                                                                        description: text("description"),
-                                                                                                                                                                                          sortOrder: integer("sort_order").notNull().default(0),
-                                                                                                                                                                                          });
+// — PROJECTS ———————————————————————————————————————————————
+export const projects = pgTable("projects", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  goalId: integer("goal_id"),
+  title: text("title").notNull(),
+  status: text("status").notNull().default("not_started"),
+  dueDate: text("due_date"),
+  description: text("description"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
 
-                                                                                                                                                                                          // — PROJECT TASKS ——————————————————————————————————————————
-                                                                                                                                                                                          export const projectTasks = pgTable("project_tasks", {
-                                                                                                                                                                                            id: serial("id").primaryKey(),
-                                                                                                                                                                                              userId: integer("user_id").notNull(),
-                                                                                                                                                                                                projectId: integer("project_id").notNull(),
-                                                                                                                                                                                                  title: text("title").notNull(),
-                                                                                                                                                                                                    completed: boolean("completed").notNull().default(false),
-                                                                                                                                                                                                      dueDate: text("due_date"),
-                                                                                                                                                                                                        priority: text("priority").notNull().default("medium"),
-                                                                                                                                                                                                          notes: text("notes"),
-                                                                                                                                                                                                            sortOrder: integer("sort_order").notNull().default(0),
-                                                                                                                                                                                                            });
+// — PROJECT TASKS ——————————————————————————————————————————
+export const projectTasks = pgTable("project_tasks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  projectId: integer("project_id").notNull(),
+  title: text("title").notNull(),
+  completed: boolean("completed").notNull().default(false),
+  dueDate: text("due_date"),
+  priority: text("priority").notNull().default("medium"),
+  notes: text("notes"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
 
-                                                                                                                                                                                                            // — WEEK PLAN ——————————————————————————————————————————————
-                                                                                                                                                                                                            export const weekPlan = pgTable("week_plan", {
-                                                                                                                                                                                                              id: serial("id").primaryKey(),
-                                                                                                                                                                                                                userId: integer("user_id").notNull(),
-                                                                                                                                                                                                                  dayIndex: integer("day_index").notNull(),
-                                                                                                                                                                                                                    recipeId: integer("recipe_id").notNull(),
-                                                                                                                                                                                                                      weekStart: text("week_start").notNull(),
-                                                                                                                                                                                                                      });
+// — WEEK PLAN ——————————————————————————————————————————————
+export const weekPlan = pgTable("week_plan", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  dayIndex: integer("day_index").notNull(),
+  recipeId: integer("recipe_id").notNull(),
+  weekStart: text("week_start").notNull(),
+});
 
-                                                                                                                                                                                                                      // — RECIPES ————————————————————————————————————————————————
-                                                                                                                                                                                                                      export const recipes = pgTable("recipes", {
-                                                                                                                                                                                                                        id: serial("id").primaryKey(),
-                                                                                                                                                                                                                          userId: integer("user_id").notNull(),
-                                                                                                                                                                                                                            name: text("name").notNull(),
-                                                                                                                                                                                                                              ingredients: text("ingredients").notNull().default("[]"),
-                                                                                                                                                                                                                                instructions: text("instructions"),
-                                                                                                                                                                                                                                  prepTime: integer("prep_time"),
-                                                                                                                                                                                                                                    cookTime: integer("cook_time"),
-                                                                                                                                                                                                                                      servings: integer("servings"),
-                                                                                                                                                                                                                                        calories: integer("calories"),
-                                                                                                                                                                                                                                          notes: text("notes"),
-                                                                                                                                                                                                                                            category: text("category"),
-                                                                                                                                                                                                                                              imageUrl: text("image_url"),
-                                                                                                                                                                                                                                              });
+// — RECIPES ————————————————————————————————————————————————
+export const recipes = pgTable("recipes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  name: text("name").notNull(),
+  ingredients: text("ingredients").notNull().default("[]"),
+  instructions: text("instructions"),
+  prepTime: integer("prep_time"),
+  cookTime: integer("cook_time"),
+  servings: integer("servings"),
+  calories: integer("calories"),
+  notes: text("notes"),
+  category: text("category"),
+  imageUrl: text("image_url"),
+});
 
-                                                                                                                                                                                                                                              export const groceryChecks = pgTable("grocery_checks", {
-                                                                                                                                                                                                                                                id: serial("id").primaryKey(),
-                                                                                                                                                                                                                                                  userId: integer("user_id").notNull(),
-                                                                                                                                                                                                                                                    weekStart: text("week_start").notNull(),
-                                                                                                                                                                                                                                                      itemKey: text("item_key").notNull(),
-                                                                                                                                                                                                                                                        checked: boolean("checked").notNull().default(false),
-                                                                                                                                                                                                                                                        });
+export const groceryChecks = pgTable("grocery_checks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  weekStart: text("week_start").notNull(),
+  itemKey: text("item_key").notNull(),
+  checked: boolean("checked").notNull().default(false),
+});
 
-                                                                                                                                                                                                                                                        // — RELATIONSHIP GROUPS ————————————————————————————————————
-                                                                                                                                                                                                                                                        export const relationshipGroups = pgTable("relationship_groups", {
-                                                                                                                                                                                                                                                          id: serial("id").primaryKey(),
-                                                                                                                                                                                                                                                            userId: integer("user_id").notNull(),
-                                                                                                                                                                                                                                                              name: text("name").notNull(),
-                                                                                                                                                                                                                                                                color: text("color"),
-                                                                                                                                                                                                                                                                  description: text("description"),
-                                                                                                                                                                                                                                                                    sortOrder: integer("sort_order").notNull().default(0),
-                                                                                                                                                                                                                                                                    });
+// — RELATIONSHIP GROUPS ————————————————————————————————————
+export const relationshipGroups = pgTable("relationship_groups", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  name: text("name").notNull(),
+  color: text("color"),
+  description: text("description"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
 
-                                                                                                                                                                                                                                                                    // — PEOPLE ————————————————————————————————————————————————
-                                                                                                                                                                                                                                                                    export const people = pgTable("people", {
-                                                                                                                                                                                                                                                                      id: serial("id").primaryKey(),
-                                                                                                                                                                                                                                                                        userId: integer("user_id").notNull(),
-                                                                                                                                                                                                                                                                          name: text("name").notNull(),
-                                                                                                                                                                                                                                                                            groupId: integer("group_id"),
-                                                                                                                                                                                                                                                                              relationship: text("relationship"),
-                                                                                                                                                                                                                                                                                birthday: text("birthday"),
-                                                                                                                                                                                                                                                                                  notes: text("notes"),
-                                                                                                                                                                                                                                                                                    spouseId: integer("spouse_id"),
-                                                                                                                                                                                                                                                                                      childrenJson: text("children_json").notNull().default("[]"),
-                                                                                                                                                                                                                                                                                        birthdayEventId: integer("birthday_event_id"),
-                                                                                                                                                                                                                                                                                          sortOrder: integer("sort_order").notNull().default(0),
-                                                                                                                                                                                                                                                                                          });
+// — PEOPLE ————————————————————————————————————————————————
+export const people = pgTable("people", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name"),
+  groupId: integer("group_id"),
+  relationship: text("relationship"),
+  birthday: text("birthday"),
+  notes: text("notes"),
+  spouseId: integer("spouse_id"),
+  childrenJson: text("children_json").notNull().default("[]"),
+  birthdayEventId: integer("birthday_event_id"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
 
-                                                                                                                                                                                                                                                                                          // — GENERAL TASKS ——————————————————————————————————————————
-                                                                                                                                                                                                                                                                                          export const generalTasks = pgTable("general_tasks", {
-                                                                                                                                                                                                                                                                                            id: serial("id").primaryKey(),
-                                                                                                                                                                                                                                                                                              userId: integer("user_id").notNull(),
-                                                                                                                                                                                                                                                                                                title: text("title").notNull(),
-                                                                                                                                                                                                                                                                                                  completed: boolean("completed").notNull().default(false),
-                                                                                                                                                                                                                                                                                                    dueDate: text("due_date"),
-                                                                                                                                                                                                                                                                                                      priority: text("priority").notNull().default("medium"),
-                                                                                                                                                                                                                                                                                                        notes: text("notes"),
-                                                                                                                                                                                                                                                                                                          sortOrder: integer("sort_order").notNull().default(0),
-                                                                                                                                                                                                                                                                                                          });
+// — GENERAL TASKS ——————————————————————————————————————————
+export const generalTasks = pgTable("general_tasks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  completed: boolean("completed").notNull().default(false),
+  dueDate: text("due_date"),
+  priority: text("priority").notNull().default("medium"),
+  notes: text("notes"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
 
-                                                                                                                                                                                                                                                                                                          // — GOAL TASKS (legacy) ————————————————————————————————————
-                                                                                                                                                                                                                                                                                                          export const goalTasks = pgTable("goal_tasks", {
-                                                                                                                                                                                                                                                                                                            id: serial("id").primaryKey(),
-                                                                                                                                                                                                                                                                                                              userId: integer("user_id").notNull(),
-                                                                                                                                                                                                                                                                                                                goalId: integer("goal_id").notNull(),
-                                                                                                                                                                                                                                                                                                                  title: text("title").notNull(),
-                                                                                                                                                                                                                                                                                                                    completed: boolean("completed").notNull().default(false),
-                                                                                                                                                                                                                                                                                                                      dueDate: text("due_date"),
-                                                                                                                                                                                                                                                                                                                        notes: text("notes"),
-                                                                                                                                                                                                                                                                                                                          sortOrder: integer("sort_order").notNull().default(0),
-                                                                                                                                                                                                                                                                                                                          });
+// — GOAL TASKS (legacy) ————————————————————————————————————
+export const goalTasks = pgTable("goal_tasks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  goalId: integer("goal_id").notNull(),
+  title: text("title").notNull(),
+  completed: boolean("completed").notNull().default(false),
+  dueDate: text("due_date"),
+  notes: text("notes"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
 
-                                                                                                                                                                                                                                                                                                                          // — INSERT SCHEMAS & TYPES —————————————————————————————————
-                                                                                                                                                                                                                                                                                                                          export const insertEventSchema = createInsertSchema(events).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertEvent = z.infer<typeof insertEventSchema>;
-                                                                                                                                                                                                                                                                                                                          export type Event = typeof events.$inferSelect;
+// — INSERT SCHEMAS & TYPES —————————————————————————————————
+// Note: userId is omitted from Zod schemas (it is added server-side from the auth session).
+// The exported TypeScript types intersect with { userId: number } so storage functions
+// can enforce it at the type level even though Zod does not validate it from req.body.
 
-                                                                                                                                                                                                                                                                                                                          export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertTask = z.infer<typeof insertTaskSchema>;
-                                                                                                                                                                                                                                                                                                                          export type Task = typeof tasks.$inferSelect;
+export const insertEventSchema = createInsertSchema(events).omit({ id: true, userId: true });
+export type InsertEvent = z.infer<typeof insertEventSchema> & { userId: number };
+export type Event = typeof events.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertBookSchema = createInsertSchema(books).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertBook = z.infer<typeof insertBookSchema>;
-                                                                                                                                                                                                                                                                                                                          export type Book = typeof books.$inferSelect;
+export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, userId: true });
+export type InsertTask = z.infer<typeof insertTaskSchema> & { userId: number };
+export type Task = typeof tasks.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertReadingSessionSchema = createInsertSchema(readingSessions).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertReadingSession = z.infer<typeof insertReadingSessionSchema>;
-                                                                                                                                                                                                                                                                                                                          export type ReadingSession = typeof readingSessions.$inferSelect;
+export const insertBookSchema = createInsertSchema(books).omit({ id: true, userId: true });
+export type InsertBook = z.infer<typeof insertBookSchema> & { userId: number };
+export type Book = typeof books.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertWorkoutTemplateSchema = createInsertSchema(workoutTemplates).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertWorkoutTemplate = z.infer<typeof insertWorkoutTemplateSchema>;
-                                                                                                                                                                                                                                                                                                                          export type WorkoutTemplate = typeof workoutTemplates.$inferSelect;
+export const insertReadingSessionSchema = createInsertSchema(readingSessions).omit({ id: true, userId: true });
+export type InsertReadingSession = z.infer<typeof insertReadingSessionSchema> & { userId: number };
+export type ReadingSession = typeof readingSessions.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertWorkoutLogSchema = createInsertSchema(workoutLogs).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertWorkoutLog = z.infer<typeof insertWorkoutLogSchema>;
-                                                                                                                                                                                                                                                                                                                          export type WorkoutLog = typeof workoutLogs.$inferSelect;
+export const insertWorkoutTemplateSchema = createInsertSchema(workoutTemplates).omit({ id: true, userId: true });
+export type InsertWorkoutTemplate = z.infer<typeof insertWorkoutTemplateSchema> & { userId: number };
+export type WorkoutTemplate = typeof workoutTemplates.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertGoalSchema = createInsertSchema(goals).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertGoal = z.infer<typeof insertGoalSchema>;
-                                                                                                                                                                                                                                                                                                                          export type Goal = typeof goals.$inferSelect;
+export const insertWorkoutLogSchema = createInsertSchema(workoutLogs).omit({ id: true, userId: true });
+export type InsertWorkoutLog = z.infer<typeof insertWorkoutLogSchema> & { userId: number };
+export type WorkoutLog = typeof workoutLogs.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertGoalTaskSchema = createInsertSchema(goalTasks).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertGoalTask = z.infer<typeof insertGoalTaskSchema>;
-                                                                                                                                                                                                                                                                                                                          export type GoalTask = typeof goalTasks.$inferSelect;
+export const insertGoalSchema = createInsertSchema(goals).omit({ id: true, userId: true });
+export type InsertGoal = z.infer<typeof insertGoalSchema> & { userId: number };
+export type Goal = typeof goals.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertProjectSchema = createInsertSchema(projects).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertProject = z.infer<typeof insertProjectSchema>;
-                                                                                                                                                                                                                                                                                                                          export type Project = typeof projects.$inferSelect;
+export const insertGoalTaskSchema = createInsertSchema(goalTasks).omit({ id: true, userId: true });
+export type InsertGoalTask = z.infer<typeof insertGoalTaskSchema> & { userId: number };
+export type GoalTask = typeof goalTasks.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertProjectTaskSchema = createInsertSchema(projectTasks).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertProjectTask = z.infer<typeof insertProjectTaskSchema>;
-                                                                                                                                                                                                                                                                                                                          export type ProjectTask = typeof projectTasks.$inferSelect;
+export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, userId: true });
+export type InsertProject = z.infer<typeof insertProjectSchema> & { userId: number };
+export type Project = typeof projects.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertGeneralTaskSchema = createInsertSchema(generalTasks).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertGeneralTask = z.infer<typeof insertGeneralTaskSchema>;
-                                                                                                                                                                                                                                                                                                                          export type GeneralTask = typeof generalTasks.$inferSelect;
+export const insertProjectTaskSchema = createInsertSchema(projectTasks).omit({ id: true, userId: true });
+export type InsertProjectTask = z.infer<typeof insertProjectTaskSchema> & { userId: number };
+export type ProjectTask = typeof projectTasks.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertRecipeSchema = createInsertSchema(recipes).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertRecipe = z.infer<typeof insertRecipeSchema>;
-                                                                                                                                                                                                                                                                                                                          export type Recipe = typeof recipes.$inferSelect;
+export const insertGeneralTaskSchema = createInsertSchema(generalTasks).omit({ id: true, userId: true });
+export type InsertGeneralTask = z.infer<typeof insertGeneralTaskSchema> & { userId: number };
+export type GeneralTask = typeof generalTasks.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertWeekPlanSchema = createInsertSchema(weekPlan).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertWeekPlan = z.infer<typeof insertWeekPlanSchema>;
-                                                                                                                                                                                                                                                                                                                          export type WeekPlan = typeof weekPlan.$inferSelect;
+export const insertRecipeSchema = createInsertSchema(recipes).omit({ id: true, userId: true });
+export type InsertRecipe = z.infer<typeof insertRecipeSchema> & { userId: number };
+export type Recipe = typeof recipes.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertGroceryCheckSchema = createInsertSchema(groceryChecks).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertGroceryCheck = z.infer<typeof insertGroceryCheckSchema>;
-                                                                                                                                                                                                                                                                                                                          export type GroceryCheck = typeof groceryChecks.$inferSelect;
+export const insertWeekPlanSchema = createInsertSchema(weekPlan).omit({ id: true, userId: true });
+export type InsertWeekPlan = z.infer<typeof insertWeekPlanSchema> & { userId: number };
+export type WeekPlan = typeof weekPlan.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertRelationshipGroupSchema = createInsertSchema(relationshipGroups).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertRelationshipGroup = z.infer<typeof insertRelationshipGroupSchema>;
-                                                                                                                                                                                                                                                                                                                          export type RelationshipGroup = typeof relationshipGroups.$inferSelect;
+export const insertGroceryCheckSchema = createInsertSchema(groceryChecks).omit({ id: true, userId: true });
+export type InsertGroceryCheck = z.infer<typeof insertGroceryCheckSchema> & { userId: number };
+export type GroceryCheck = typeof groceryChecks.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export const insertPersonSchema = createInsertSchema(people).omit({ id: true });
-                                                                                                                                                                                                                                                                                                                          export type InsertPerson = z.infer<typeof insertPersonSchema>;
-                                                                                                                                                                                                                                                                                                                          export type Person = typeof people.$inferSelect;
+export const insertRelationshipGroupSchema = createInsertSchema(relationshipGroups).omit({ id: true, userId: true });
+export type InsertRelationshipGroup = z.infer<typeof insertRelationshipGroupSchema> & { userId: number };
+export type RelationshipGroup = typeof relationshipGroups.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          export type RecipeIngredient = { name: string; qty: string };
-                                                                                                                                                                                                                                                                                                                          export type PersonWithSpouse = Person & { spouse?: Person | null };
+export const insertPersonSchema = createInsertSchema(people).omit({ id: true, userId: true });
+export type InsertPerson = z.infer<typeof insertPersonSchema> & { userId: number };
+export type Person = typeof people.$inferSelect;
 
-                                                                                                                                                                                                                                                                                                                          // — COMPOSITE TYPES ————————————————————————————————————————
-                                                                                                                                                                                                                                                                                                                          export type EventWithTasks = Event & { tasks: Task[] };
-                                                                                                                                                                                                                                                                                                                          export type GoalWithTasks = Goal & { tasks: GoalTask[] };
-                                                                                                                                                                                                                                                                                                                          export type ProjectWithTasks = Project & { tasks: ProjectTask[] };
-                                                                                                                                                                                                                                                                                                                          export type GoalWithProjects = Goal & { projects: ProjectWithTasks[] };
-                                                                                                                                                                                                                                                                                                                          export type BookWithSessions = Book & { sessions: ReadingSession[] };
-                                                                                                                                                                                                                                                                                                                          export type WorkoutTemplateWithLogs = WorkoutTemplate & { recentLogs: WorkoutLog[] };
+export type RecipeIngredient = { name: string; qty: string };
+export type PersonWithSpouse = Person & { spouse?: Person | null };
 
-                                                                                                                                                                                                                                                                                                                          export type TemplateSet = { reps: number; weight: number };
-                                                                                                                                                                                                                                                                                                                          export type TemplateExercise = { name: string; sets: TemplateSet[]; restSeconds: number; notes: string };
-                                                                                                                                                                                                                                                                                                                          export type LoggedSet = { reps: number; weight: number; rpe?: number };
-                                                                                                                                                                                                                                                                                                                          export type LoggedExercise = { name: string; sets: LoggedSet[]; isPR: boolean; notes: string };
-                                                                                                                                                                                                                                                                                                                          
+// — COMPOSITE TYPES ————————————————————————————————————————
+export type EventWithTasks = Event & { tasks: Task[] };
+export type GoalWithTasks = Goal & { tasks: GoalTask[] };
+export type ProjectWithTasks = Project & { tasks: ProjectTask[] };
+export type GoalWithProjects = Goal & { projects: ProjectWithTasks[] };
+export type BookWithSessions = Book & { sessions: ReadingSession[] };
+export type WorkoutTemplateWithLogs = WorkoutTemplate & { recentLogs: WorkoutLog[] };
+
+export type TemplateSet = { reps: number; weight: number };
+export type TemplateExercise = { name: string; sets: TemplateSet[]; restSeconds: number; notes: string };
+export type LoggedSet = { reps: number; weight: number; rpe?: number };
+export type LoggedExercise = { name: string; sets: LoggedSet[]; isPR: boolean; notes: string };
