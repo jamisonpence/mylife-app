@@ -1,3 +1,4 @@
+import path from "path";
 import type { Express } from "express";
 import { createServer } from "http";
 import passport from "passport";
@@ -23,6 +24,47 @@ import {
 
                 export function registerRoutes(_httpServer: ReturnType<typeof createServer>, app: Express) {
                   setupAuth(app);
+
+  // — Landing page ——————————————————————————————————————
+  app.get("/", (req, res) => {
+    if (req.isAuthenticated()) return res.redirect("/dashboard");
+    res.sendFile(path.resolve(process.cwd(), "landing.html"));
+  });
+
+  // — Token-based Google sign-in ————————————————————————
+  app.post("/auth/google", async (req, res) => {
+    try {
+      const { access_token } = req.body;
+      if (!access_token) return res.status(400).json({ error: "access_token required" });
+
+      const googleRes = await fetch(
+        `https://www.googleapis.com/oauth2/v1/userinfo?access_token=${access_token}`
+      );
+      if (!googleRes.ok) return res.status(401).json({ error: "Invalid Google token" });
+      const profile = await googleRes.json() as { id: string; email: string; name: string };
+
+      const { id: googleId, email } = profile;
+      if (!email) return res.status(401).json({ error: "No email returned from Google" });
+
+      let user = await storage.getUserByGoogleId(googleId);
+      if (!user) {
+        user = await storage.getUserByEmail(email);
+        if (user) {
+          user = await storage.linkGoogleId(user.id, googleId);
+        } else {
+          user = await storage.createGoogleUser({ email, googleId });
+        }
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        req.login(user!, (err) => (err ? reject(err) : resolve()));
+      });
+
+      res.json({ redirect: "/dashboard" });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
 
                     // — Auth routes ———————————————————————————————————————
                       app.post("/api/auth/register", async (req, res) => {
@@ -67,7 +109,7 @@ import {
   );
 
   app.get("/api/auth/google/callback",
-    passport.authenticate("google", { failureRedirect: "/login?error=google_failed" }),
+    passport.authenticate("google", { failureRedirect: "/" }),
     (_req, res) => { res.redirect("/"); }
   );
 
