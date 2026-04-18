@@ -6,6 +6,14 @@ import { Pool } from "pg";
 
 const app = express();
 app.set("trust proxy", 1); // required for secure cookies behind Railway's proxy
+
+// Redirect bare domain (mylifos.com) to www
+app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.hostname === 'mylifos.com') {
+          return res.redirect(301, `https://www.mylifos.com${req.url}`);
+    }
+    next();
+});
 const httpServer = createServer(app);
 
 declare module "http" {
